@@ -17,7 +17,7 @@ interface ConnectionsContextType {
     setIndustryFilter: (industries: string[]) => void;
     setHeatFilter: (statuses: HeatStatus[]) => void;
     setSearchQuery: (query: string) => void;
-    setDegreeFilter: (degrees: (1 | 2 | 3)[]) => void;
+    setMaxDegreeFilter: (maxDegree: 1 | 2 | 3 | null) => void;
     clearFilters: () => void;
 
     // Selection
@@ -70,45 +70,77 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
         industries: [],
         heatStatuses: [],
         searchQuery: '',
-        degrees: [],
+        maxDegree: null, // null = show all
     });
 
-    // Filtered connections
+    // Helper: check if connection matches basic filters (industry, search)
+    const matchesBasicFilters = useCallback((conn: ConnectionNode) => {
+        // Industry filter
+        if (filters.industries.length > 0 && !filters.industries.includes(conn.industry)) {
+            return false;
+        }
+        // Search query
+        if (filters.searchQuery) {
+            const query = filters.searchQuery.toLowerCase();
+            const searchFields = [conn.name, conn.title, conn.company, conn.industry].map(f => f.toLowerCase());
+            if (!searchFields.some(field => field.includes(query))) {
+                return false;
+            }
+        }
+        return true;
+    }, [filters.industries, filters.searchQuery]);
+
+    // Filtered connections with cascading logic based on maxDegree
+    // When selecting a degree, show that degree AND all parent degrees needed
     const filteredConnections = useMemo(() => {
-        return connections.filter(conn => {
-            // Industry filter
-            if (filters.industries.length > 0 && !filters.industries.includes(conn.industry)) {
+        const { maxDegree, heatStatuses } = filters;
+
+        // First pass: filter 1st degree connections (always needed as base)
+        const firstDegreeFiltered = connections.filter(conn => {
+            if (conn.degree !== 1) return false;
+            if (!matchesBasicFilters(conn)) return false;
+
+            // Heat status filter (only for 1st degree)
+            if (heatStatuses.length > 0 && !heatStatuses.includes(conn.heatStatus)) {
                 return false;
-            }
-
-            // Heat status filter
-            if (filters.heatStatuses.length > 0 && !filters.heatStatuses.includes(conn.heatStatus)) {
-                return false;
-            }
-
-            // Degree filter
-            if (filters.degrees.length > 0 && !filters.degrees.includes(conn.degree)) {
-                return false;
-            }
-
-            // Search query
-            if (filters.searchQuery) {
-                const query = filters.searchQuery.toLowerCase();
-                const searchFields = [
-                    conn.name,
-                    conn.title,
-                    conn.company,
-                    conn.industry,
-                ].map(f => f.toLowerCase());
-
-                if (!searchFields.some(field => field.includes(query))) {
-                    return false;
-                }
             }
 
             return true;
         });
-    }, [connections, filters]);
+
+        // If maxDegree is 1, only show 1st degree
+        if (maxDegree === 1) {
+            return firstDegreeFiltered;
+        }
+
+        const visible1stIds = new Set(firstDegreeFiltered.map(c => c.id));
+
+        // Second pass: 2nd degree - only those connected to visible 1st degree
+        const secondDegreeFiltered = connections.filter(conn => {
+            if (conn.degree !== 2) return false;
+            if (!conn.connectedThrough || !visible1stIds.has(conn.connectedThrough)) return false;
+            if (!matchesBasicFilters(conn)) return false;
+            return true;
+        });
+
+        // If maxDegree is 2, show 1st + 2nd degree
+        if (maxDegree === 2) {
+            return [...firstDegreeFiltered, ...secondDegreeFiltered];
+        }
+
+        const visible2ndIds = new Set(secondDegreeFiltered.map(c => c.id));
+
+        // Third pass: 3rd degree - only those connected to visible 2nd degree
+        const thirdDegreeFiltered = connections.filter(conn => {
+            if (conn.degree !== 3) return false;
+            if (!conn.connectedThrough || !visible2ndIds.has(conn.connectedThrough)) return false;
+            if (!matchesBasicFilters(conn)) return false;
+            return true;
+        });
+
+        // maxDegree is 3 or null - show all
+        return [...firstDegreeFiltered, ...secondDegreeFiltered, ...thirdDegreeFiltered];
+    }, [connections, filters, matchesBasicFilters]);
 
     // Filter links to only include visible connections
     const links: ConnectionLink[] = useMemo(() => {
@@ -142,8 +174,8 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
         setFilters(prev => ({ ...prev, heatStatuses }));
     }, []);
 
-    const setDegreeFilter = useCallback((degrees: (1 | 2 | 3)[]) => {
-        setFilters(prev => ({ ...prev, degrees }));
+    const setMaxDegreeFilter = useCallback((maxDegree: 1 | 2 | 3 | null) => {
+        setFilters(prev => ({ ...prev, maxDegree }));
     }, []);
 
     const setSearchQuery = useCallback((searchQuery: string) => {
@@ -155,7 +187,7 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
             industries: [],
             heatStatuses: [],
             searchQuery: '',
-            degrees: [],
+            maxDegree: null,
         });
     }, []);
 
@@ -182,7 +214,7 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
         filters,
         setIndustryFilter,
         setHeatFilter,
-        setDegreeFilter,
+        setMaxDegreeFilter,
         setSearchQuery,
         clearFilters,
         selectConnection,

@@ -5,6 +5,7 @@ import { useConnections } from '@/context/ConnectionsContext';
 import { HeatStatus } from '@/types';
 import { getHeatColor } from '@/utils/heatMap';
 import LinkedInImport from '@/components/LinkedInImport';
+import AddConnection from '@/components/AddConnection';
 import styles from './FilterPanel.module.css';
 
 export default function FilterPanel() {
@@ -12,7 +13,7 @@ export default function FilterPanel() {
         filters,
         setIndustryFilter,
         setHeatFilter,
-        setDegreeFilter,
+        setMaxDegreeFilter,
         setSearchQuery,
         clearFilters,
         stats,
@@ -33,16 +34,18 @@ export default function FilterPanel() {
     };
 
     const handleDegreeChange = (degree: 1 | 2 | 3) => {
-        const newDegrees = filters.degrees.includes(degree)
-            ? filters.degrees.filter(d => d !== degree)
-            : [...filters.degrees, degree];
-        setDegreeFilter(newDegrees);
+        // Toggle: if already selected, clear it (show all), otherwise select it
+        if (filters.maxDegree === degree) {
+            setMaxDegreeFilter(null);
+        } else {
+            setMaxDegreeFilter(degree);
+        }
     };
 
     const hasActiveFilters =
         filters.industries.length > 0 ||
         filters.heatStatuses.length > 0 ||
-        filters.degrees.length > 0 ||
+        filters.maxDegree !== null ||
         filters.searchQuery.length > 0;
 
     return (
@@ -68,21 +71,22 @@ export default function FilterPanel() {
                 />
             </div>
 
-            {/* Connection Degree Filter */}
+            {/* Connection Degree Filter - Single Select */}
             <div className={styles.section}>
-                <label className={styles.sectionTitle}>Connection Degree</label>
+                <label className={styles.sectionTitle}>Show Up To</label>
                 <div className={styles.degreeFilters}>
                     {([1, 2, 3] as const).map(degree => (
                         <label key={degree} className={styles.degreeOption}>
                             <input
-                                type="checkbox"
-                                checked={filters.degrees.includes(degree)}
+                                type="radio"
+                                name="maxDegree"
+                                checked={filters.maxDegree === degree}
                                 onChange={() => handleDegreeChange(degree)}
                             />
-                            <span className={`${styles.degreeBadge} ${filters.degrees.includes(degree) ? styles.active : ''}`}>
-                                {degree === 1 && `1st° (${stats.degree1})`}
-                                {degree === 2 && `2nd° (${stats.degree2})`}
-                                {degree === 3 && `3rd° (${stats.degree3})`}
+                            <span className={`${styles.degreeBadge} ${filters.maxDegree === degree ? styles.active : ''}`}>
+                                {degree === 1 && `1st° only`}
+                                {degree === 2 && `Up to 2nd°`}
+                                {degree === 3 && `All (3rd°)`}
                             </span>
                         </label>
                     ))}
@@ -91,7 +95,7 @@ export default function FilterPanel() {
 
             {/* Heat Status Filter */}
             <div className={styles.section}>
-                <label className={styles.sectionTitle}>Engagement Status</label>
+                <label className={styles.sectionTitle}>Engagement (1st° only)</label>
                 <div className={styles.heatFilters}>
                     {(['hot', 'warm', 'cold'] as HeatStatus[]).map(status => (
                         <label key={status} className={styles.heatOption}>
@@ -133,6 +137,12 @@ export default function FilterPanel() {
                         </label>
                     ))}
                 </div>
+            </div>
+
+            {/* Add Connection Form */}
+            <div className={styles.section}>
+                <label className={styles.sectionTitle}>Add Contact</label>
+                <AddConnection />
             </div>
 
             {/* LinkedIn Import */}

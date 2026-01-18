@@ -39,7 +39,7 @@ export interface FilterState {
   industries: string[];
   heatStatuses: HeatStatus[];
   searchQuery: string;
-  degrees: (1 | 2 | 3)[];
+  maxDegree: 1 | 2 | 3 | null; // null = show all, 1/2/3 = show up to that degree
 }
 
 // Graph simulation types for D3

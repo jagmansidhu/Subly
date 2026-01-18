@@ -393,7 +393,7 @@ export function EmailDashboard() {
 
                     {/* Sender Category Graph - Click to drill down */}
                     {emails.length > 0 && (
-                        <EmailNodeGraph emails={emails} />
+                        <EmailNodeGraph emails={emails} connectedEmail={status.email} />
                     )}
 
                     <div className={styles.filterBar}>
@@ -450,7 +450,7 @@ export function EmailDashboard() {
                     ) : (
                         <div className={styles.emailGrid}>
                             {filteredEmails.map(email => (
-                                <EmailCard key={email.id} email={email} />
+                                <EmailCard key={email.id} email={email} connectedEmail={status.email} />
                             ))}
                         </div>
                     )}

@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as d3 from 'd3';
 import styles from './EmailNodeGraph.module.css';
+import { EmailPreview } from '../EmailPreview';
 import type { AnalyzedEmail } from '@/lib/gemini/service';
 
 interface CategoryNode {
@@ -17,6 +18,7 @@ interface CategoryNode {
 
 interface EmailNodeGraphProps {
     emails: AnalyzedEmail[];
+    connectedEmail?: string;
     onEmailSelect?: (email: AnalyzedEmail | null) => void;
 }
 
@@ -59,13 +61,14 @@ function getPriorityColor(priority: string): string {
     }
 }
 
-export function EmailNodeGraph({ emails, onEmailSelect }: EmailNodeGraphProps) {
+export function EmailNodeGraph({ emails, connectedEmail, onEmailSelect }: EmailNodeGraphProps) {
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [dimensions, setDimensions] = useState({ width: 600, height: 400 });
     const animationRef = useRef<number | undefined>(undefined);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [zoomedIn, setZoomedIn] = useState(false);
+    const [previewEmail, setPreviewEmail] = useState<AnalyzedEmail | null>(null);
 
     // Group emails by category
     const categories = React.useMemo(() => {
@@ -375,9 +378,10 @@ export function EmailNodeGraph({ emails, onEmailSelect }: EmailNodeGraphProps) {
                 .attr('stroke-width', 1);
         });
 
-        // Click to open email
+        // Click to open email preview
         emailGroups.on('click', (event, d) => {
-            window.open(`https://mail.google.com/mail/u/0/#inbox/${d.threadId}`, '_blank');
+            event.stopPropagation();
+            setPreviewEmail(d);
         });
 
         // Hover effects
@@ -416,6 +420,21 @@ export function EmailNodeGraph({ emails, onEmailSelect }: EmailNodeGraphProps) {
             <svg ref={svgRef} className={styles.svg} />
             {!zoomedIn && (
                 <p className={styles.hint}>Click a category to see emails</p>
+            )}
+
+            {/* Email Preview Modal */}
+            {previewEmail && (
+                <EmailPreview
+                    email={previewEmail}
+                    onClose={() => setPreviewEmail(null)}
+                    onOpenInGmail={() => {
+                        const authParam = connectedEmail ? `?authuser=${encodeURIComponent(connectedEmail)}` : '/u/0';
+                        const gmailUrl = connectedEmail
+                            ? `https://mail.google.com/mail${authParam}#inbox/${previewEmail.threadId}`
+                            : `https://mail.google.com/mail/u/0/#inbox/${previewEmail.threadId}`;
+                        window.open(gmailUrl, '_blank');
+                    }}
+                />
             )}
         </div>
     );

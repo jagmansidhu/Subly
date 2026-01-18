@@ -35,9 +35,9 @@ export class GeminiService {
         this.model = genAI.getGenerativeModel({
             model: 'gemini-2.0-flash-lite-preview-02-05',
             generationConfig: {
-                temperature: 0.3, // Lower temperature for more consistent analysis
+                temperature: 0.3,
                 topP: 0.8,
-                maxOutputTokens: 1024,
+                maxOutputTokens: 2048, // Increased for batch responses
             },
         });
     }
@@ -48,38 +48,29 @@ export class GeminiService {
         const snippet = (email.snippet || '').toLowerCase();
         const daysOld = Math.floor((Date.now() - email.date.getTime()) / (1000 * 60 * 60 * 24));
 
-        // Determine priority based on keywords
         let priority: Priority = 'MEDIUM';
         let action: ActionType = 'FYI';
         let responseTime: ResponseTime = 'When convenient';
 
-        // High priority signals
         if (subject.includes('urgent') || subject.includes('asap') || subject.includes('important') ||
             subject.includes('deadline') || subject.includes('action required') || email.isStarred) {
             priority = 'HIGH';
             action = 'RESPONSE_NEEDED';
             responseTime = 'ASAP';
-        }
-        // Meeting/calendar signals
-        else if (subject.includes('meeting') || subject.includes('invite') || subject.includes('calendar')) {
+        } else if (subject.includes('meeting') || subject.includes('invite') || subject.includes('calendar')) {
             priority = 'MEDIUM';
             action = 'DEADLINE';
             responseTime = 'This week';
-        }
-        // Question signals
-        else if (subject.includes('question') || subject.includes('help') || snippet.includes('?')) {
+        } else if (subject.includes('question') || subject.includes('help') || snippet.includes('?')) {
             priority = 'MEDIUM';
             action = 'RESPONSE_NEEDED';
             responseTime = 'This week';
-        }
-        // Newsletter/FYI signals
-        else if (subject.includes('newsletter') || subject.includes('update') || subject.includes('digest')) {
+        } else if (subject.includes('newsletter') || subject.includes('update') || subject.includes('digest')) {
             priority = 'LOW';
             action = 'FYI';
             responseTime = 'No response needed';
         }
 
-        // Older emails get slightly lower priority if not already HIGH
         if (daysOld > 7 && priority !== 'HIGH') {
             priority = 'LOW';
         }
@@ -91,7 +82,7 @@ export class GeminiService {
             summary: email.snippet?.substring(0, 100) || `Email from ${email.from}`,
             suggestedResponseTime: responseTime,
             keyPoints: [`From: ${email.from}`, `Subject: ${email.subject.substring(0, 50)}`],
-            reasoning: 'Smart analysis based on email metadata (demo mode)',
+            reasoning: 'Smart analysis based on email metadata (fallback mode)',
         };
     }
 
@@ -103,7 +94,6 @@ export class GeminiService {
             const result = await this.model.generateContent(prompt);
             const response = result.response.text();
 
-            // Extract JSON from response (handle markdown code blocks)
             const jsonMatch = response.match(/```json\n?([\s\S]*?)\n?```/) ||
                 response.match(/\{[\s\S]*\}/);
 
@@ -117,7 +107,6 @@ export class GeminiService {
 
             return analysis;
         } catch (error: any) {
-            // Use smart mock for rate limits or any other errors
             if (error?.status === 429 || error?.message?.includes('429')) {
                 console.log('API rate limited, using smart mock analysis for:', email.subject);
             } else {
@@ -127,44 +116,76 @@ export class GeminiService {
         }
     }
 
-    // Batch analyze multiple emails (more efficient)
+    // OPTIMIZED: Batch analyze using single API call
     async batchAnalyze(emails: ParsedEmail[]): Promise<EmailAnalysis[]> {
         if (emails.length === 0) return [];
 
-        // Process sequentially with modest delay for paid tier
-        const analyses: EmailAnalysis[] = [];
+        console.log(`Gemini: Batch analyzing ${emails.length} emails in single call...`);
 
-        for (let i = 0; i < emails.length; i++) {
-            const email = emails[i];
+        try {
+            // Use batch prompt for all emails at once
+            const batchPrompt = formatEmailsForBatchPrompt(emails);
+            const result = await this.model.generateContent(batchPrompt);
+            const response = result.response.text();
 
-            // Add 1 second delay between requests (sufficient for paid tier)
-            if (i > 0) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
+            // Extract JSON array from response
+            const jsonMatch = response.match(/```json\n?([\s\S]*?)\n?```/) ||
+                response.match(/\[[\s\S]*\]/);
+
+            if (!jsonMatch) {
+                console.error('Could not parse batch response, falling back to individual analysis');
+                return this.fallbackSequentialAnalysis(emails);
             }
 
-            try {
-                const analysis = await this.analyzeEmail(email);
-                analyses.push(analysis);
-            } catch (error) {
-                console.error('Analysis failed for item, creating default:', error);
-                analyses.push({
-                    id: email.id,
-                    priority: 'MEDIUM',
-                    action: 'FYI',
-                    summary: email.snippet || 'Failed to analyze',
-                    suggestedResponseTime: 'When convenient',
-                });
+            const jsonStr = jsonMatch[1] || jsonMatch[0];
+            const analyses = JSON.parse(jsonStr) as EmailAnalysis[];
+
+            console.log(`Gemini: Batch analysis complete, got ${analyses.length} results`);
+
+            // Ensure all emails have analyses (fill in missing with smart mock)
+            const analysisMap = new Map(analyses.map(a => [a.id, a]));
+            return emails.map(email =>
+                analysisMap.get(email.id) || this.generateSmartMockAnalysis(email)
+            );
+        } catch (error: any) {
+            console.error('Batch analysis failed:', error.message);
+            return this.fallbackSequentialAnalysis(emails);
+        }
+    }
+
+    // Fallback: Parallel analysis with concurrency limit (if batch fails)
+    private async fallbackSequentialAnalysis(emails: ParsedEmail[]): Promise<EmailAnalysis[]> {
+        console.log('Gemini: Falling back to parallel analysis with concurrency...');
+
+        const concurrency = 3; // 3 concurrent requests
+        const results: EmailAnalysis[] = [];
+
+        for (let i = 0; i < emails.length; i += concurrency) {
+            const batch = emails.slice(i, i + concurrency);
+            const batchResults = await Promise.all(
+                batch.map(async email => {
+                    try {
+                        return await this.analyzeEmail(email);
+                    } catch {
+                        return this.generateSmartMockAnalysis(email);
+                    }
+                })
+            );
+            results.push(...batchResults);
+
+            // Small delay between batches (200ms instead of 1s per email)
+            if (i + concurrency < emails.length) {
+                await new Promise(resolve => setTimeout(resolve, 200));
             }
         }
 
-        return analyses;
+        return results;
     }
 
     // Combine emails with their analyses
     async analyzeAndEnrich(emails: ParsedEmail[]): Promise<AnalyzedEmail[]> {
         const analyses = await this.batchAnalyze(emails);
 
-        // Create a map for quick lookup
         const analysisMap = new Map(analyses.map(a => [a.id, a]));
 
         return emails.map(email => ({
@@ -190,8 +211,6 @@ export class GeminiService {
         return [...emails].sort((a, b) => {
             const priorityDiff = priorityOrder[a.analysis.priority] - priorityOrder[b.analysis.priority];
             if (priorityDiff !== 0) return priorityDiff;
-
-            // Secondary sort by date (older first for same priority)
             return a.date.getTime() - b.date.getTime();
         });
     }

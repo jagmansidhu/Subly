@@ -31,20 +31,35 @@ interface CachedEmailData {
 type FilterType = 'all' | Priority | ActionType;
 
 const CACHE_KEY = 'email_dashboard_cache';
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+function getInitialCache(): { emails: AnalyzedEmail[]; stats: EmailStats | null } {
+    if (typeof window === 'undefined') return { emails: [], stats: null };
+    try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (!cached) return { emails: [], stats: null };
+        const data: CachedEmailData = JSON.parse(cached);
+        if (Date.now() - data.timestamp < CACHE_TTL) {
+            const emails = data.emails.map(e => ({ ...e, date: new Date(e.date) }));
+            return { emails, stats: data.stats };
+        }
+    } catch { }
+    return { emails: [], stats: null };
+}
 
 export function EmailDashboard() {
-    // Master list of all fetched emails (includes starred)
-    const [allEmails, setAllEmails] = useState<AnalyzedEmail[]>([]);
-    const [stats, setStats] = useState<EmailStats | null>(null);
+    const initialCache = getInitialCache();
+
+    const [allEmails, setAllEmails] = useState<AnalyzedEmail[]>(initialCache.emails);
+    const [stats, setStats] = useState<EmailStats | null>(initialCache.stats);
     const [status, setStatus] = useState<ConnectionStatus>({ connected: false });
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(initialCache.emails.length === 0);
     const [refreshing, setRefreshing] = useState(false);
     const [filter, setFilter] = useState<FilterType>('all');
 
     const [source, setSource] = useState<'starred' | 'all'>('starred');
     const [error, setError] = useState<string | null>(null);
-    const [usingCache, setUsingCache] = useState(false);
+    const [usingCache, setUsingCache] = useState(initialCache.emails.length > 0);
     const [hasLoadedAll, setHasLoadedAll] = useState(false);
 
     // Derive displayed emails based on source toggle (no API call needed!)
@@ -207,18 +222,25 @@ export function EmailDashboard() {
 
     useEffect(() => {
         const init = async () => {
-            setLoading(true);
+            const hasCachedData = allEmails.length > 0;
+
+            if (!hasCachedData) {
+                setLoading(true);
+            }
+
             const connected = await checkConnection();
             if (connected) {
-                await fetchEmails(false, 'starred'); // Start with starred
+                if (!hasCachedData) {
+                    await fetchEmails(false, 'starred');
+                }
             } else {
-                clearCache(); // Clear cache if not connected
+                clearCache();
             }
             setLoading(false);
         };
         init();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Only run on mount
+    }, []);
 
     // Effect to handle source toggle - fetch new data when switching to 'all'
     useEffect(() => {

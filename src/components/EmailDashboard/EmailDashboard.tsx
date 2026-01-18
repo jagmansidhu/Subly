@@ -234,6 +234,16 @@ export function EmailDashboard() {
     }, [source, loading, status.connected, hasLoadedAll, fetchEmails]);
 
     const filteredEmails = emails.filter((email: AnalyzedEmail) => {
+        // Filter out emails with deadlines before today
+        if (email.analysis.deadline) {
+            const deadlineDate = new Date(email.analysis.deadline);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Reset to start of day
+            if (deadlineDate < today) {
+                return false;
+            }
+        }
+
         if (filter === 'all') return true;
         if (['HIGH', 'MEDIUM', 'LOW'].includes(filter)) {
             return email.analysis.priority === filter;

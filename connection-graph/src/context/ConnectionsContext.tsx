@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
-import { Connection, ConnectionNode, FilterState, HeatStatus, INDUSTRIES } from '@/types';
+import { Connection, ConnectionNode, ConnectionLink, FilterState, HeatStatus } from '@/types';
 import { mockConnections } from '@/data/mockConnections';
 import { getHeatStatus } from '@/utils/heatMap';
 
@@ -9,6 +9,7 @@ interface ConnectionsContextType {
     // Data
     connections: ConnectionNode[];
     filteredConnections: ConnectionNode[];
+    links: ConnectionLink[];
     selectedConnection: ConnectionNode | null;
 
     // Filters
@@ -16,10 +17,15 @@ interface ConnectionsContextType {
     setIndustryFilter: (industries: string[]) => void;
     setHeatFilter: (statuses: HeatStatus[]) => void;
     setSearchQuery: (query: string) => void;
+    setDegreeFilter: (degrees: (1 | 2 | 3)[]) => void;
     clearFilters: () => void;
 
     // Selection
     selectConnection: (connection: ConnectionNode | null) => void;
+
+    // Add connections (for LinkedIn import)
+    addConnections: (newConnections: Connection[]) => void;
+    clearAllConnections: () => void;
 
     // Stats
     stats: {
@@ -28,19 +34,35 @@ interface ConnectionsContextType {
         warm: number;
         cold: number;
         industries: string[];
+        degree1: number;
+        degree2: number;
+        degree3: number;
     };
 }
 
 const ConnectionsContext = createContext<ConnectionsContextType | undefined>(undefined);
 
 export function ConnectionsProvider({ children }: { children: React.ReactNode }) {
+    // Raw connections state (can be updated via import)
+    const [rawConnections, setRawConnections] = useState<Connection[]>(mockConnections);
+
     // Transform raw connections into nodes with heat status
     const connections: ConnectionNode[] = useMemo(() => {
-        return mockConnections.map(conn => ({
+        return rawConnections.map(conn => ({
             ...conn,
             heatStatus: getHeatStatus(conn.lastContactDate),
         }));
-    }, []);
+    }, [rawConnections]);
+
+    // Generate links from connectedThrough relationships
+    const allLinks: ConnectionLink[] = useMemo(() => {
+        return connections
+            .filter(conn => conn.connectedThrough)
+            .map(conn => ({
+                source: conn.connectedThrough!,
+                target: conn.id,
+            }));
+    }, [connections]);
 
     // State
     const [selectedConnection, setSelectedConnection] = useState<ConnectionNode | null>(null);
@@ -48,6 +70,7 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
         industries: [],
         heatStatuses: [],
         searchQuery: '',
+        degrees: [],
     });
 
     // Filtered connections
@@ -60,6 +83,11 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
 
             // Heat status filter
             if (filters.heatStatuses.length > 0 && !filters.heatStatuses.includes(conn.heatStatus)) {
+                return false;
+            }
+
+            // Degree filter
+            if (filters.degrees.length > 0 && !filters.degrees.includes(conn.degree)) {
                 return false;
             }
 
@@ -82,6 +110,14 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
         });
     }, [connections, filters]);
 
+    // Filter links to only include visible connections
+    const links: ConnectionLink[] = useMemo(() => {
+        const visibleIds = new Set(filteredConnections.map(c => c.id));
+        return allLinks.filter(link =>
+            visibleIds.has(link.source) && visibleIds.has(link.target)
+        );
+    }, [allLinks, filteredConnections]);
+
     // Stats
     const stats = useMemo(() => {
         const industriesSet = new Set(connections.map(c => c.industry));
@@ -91,6 +127,9 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
             warm: connections.filter(c => c.heatStatus === 'warm').length,
             cold: connections.filter(c => c.heatStatus === 'cold').length,
             industries: Array.from(industriesSet).sort(),
+            degree1: connections.filter(c => c.degree === 1).length,
+            degree2: connections.filter(c => c.degree === 2).length,
+            degree3: connections.filter(c => c.degree === 3).length,
         };
     }, [connections]);
 
@@ -103,6 +142,10 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
         setFilters(prev => ({ ...prev, heatStatuses }));
     }, []);
 
+    const setDegreeFilter = useCallback((degrees: (1 | 2 | 3)[]) => {
+        setFilters(prev => ({ ...prev, degrees }));
+    }, []);
+
     const setSearchQuery = useCallback((searchQuery: string) => {
         setFilters(prev => ({ ...prev, searchQuery }));
     }, []);
@@ -112,6 +155,7 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
             industries: [],
             heatStatuses: [],
             searchQuery: '',
+            degrees: [],
         });
     }, []);
 
@@ -119,16 +163,31 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
         setSelectedConnection(connection);
     }, []);
 
+    // Add new connections (from LinkedIn import)
+    const addConnections = useCallback((newConnections: Connection[]) => {
+        setRawConnections(prev => [...prev, ...newConnections]);
+    }, []);
+
+    // Clear all connections
+    const clearAllConnections = useCallback(() => {
+        setRawConnections([]);
+        setSelectedConnection(null);
+    }, []);
+
     const value: ConnectionsContextType = {
         connections,
         filteredConnections,
+        links,
         selectedConnection,
         filters,
         setIndustryFilter,
         setHeatFilter,
+        setDegreeFilter,
         setSearchQuery,
         clearFilters,
         selectConnection,
+        addConnections,
+        clearAllConnections,
         stats,
     };
 

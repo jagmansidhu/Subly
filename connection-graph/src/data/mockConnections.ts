@@ -8,7 +8,11 @@ const daysAgo = (days: number): Date => {
 };
 
 export const mockConnections: Connection[] = [
-    // Hot connections (contacted within 2 weeks)
+    // ========================================
+    // 1ST DEGREE CONNECTIONS (Direct contacts)
+    // ========================================
+
+    // Hot 1st-degree connections
     {
         id: '1',
         name: 'Sarah Chen',
@@ -19,6 +23,7 @@ export const mockConnections: Connection[] = [
         linkedIn: 'linkedin.com/in/sarahchen',
         lastContactDate: daysAgo(2),
         notes: 'Discussed potential partnership on AI project',
+        degree: 1,
     },
     {
         id: '2',
@@ -30,6 +35,7 @@ export const mockConnections: Connection[] = [
         phone: '+1 (555) 123-4567',
         lastContactDate: daysAgo(5),
         notes: 'Follow up on Q1 deal',
+        degree: 1,
     },
     {
         id: '3',
@@ -40,6 +46,7 @@ export const mockConnections: Connection[] = [
         email: 'emily.r@innovate.co',
         lastContactDate: daysAgo(1),
         notes: 'Met at TechCrunch event',
+        degree: 1,
     },
     {
         id: '4',
@@ -51,9 +58,10 @@ export const mockConnections: Connection[] = [
         phone: '+1 (555) 987-6543',
         lastContactDate: daysAgo(10),
         notes: 'Interested in Series B discussion',
+        degree: 1,
     },
 
-    // Warm connections (2 weeks to 3 months)
+    // Warm 1st-degree connections
     {
         id: '5',
         name: 'Jennifer Walsh',
@@ -63,6 +71,7 @@ export const mockConnections: Connection[] = [
         email: 'jwalsh@brandforge.com',
         lastContactDate: daysAgo(21),
         notes: 'Potential marketing collaboration',
+        degree: 1,
     },
     {
         id: '6',
@@ -72,6 +81,7 @@ export const mockConnections: Connection[] = [
         industry: 'Engineering',
         email: 'mtorres@buildright.com',
         lastContactDate: daysAgo(35),
+        degree: 1,
     },
     {
         id: '7',
@@ -83,7 +93,10 @@ export const mockConnections: Connection[] = [
         linkedIn: 'linkedin.com/in/amandafoster',
         lastContactDate: daysAgo(45),
         notes: 'Interested in freelance opportunities',
+        degree: 1,
     },
+
+    // Cold 1st-degree connections
     {
         id: '8',
         name: 'Robert Chang',
@@ -91,7 +104,8 @@ export const mockConnections: Connection[] = [
         company: 'FinanceFirst',
         industry: 'Finance',
         email: 'rchang@financefirst.com',
-        lastContactDate: daysAgo(60),
+        lastContactDate: daysAgo(120),
+        degree: 1,
     },
     {
         id: '9',
@@ -101,8 +115,9 @@ export const mockConnections: Connection[] = [
         industry: 'Healthcare',
         email: 'lisa@medadvisors.com',
         phone: '+1 (555) 222-3333',
-        lastContactDate: daysAgo(50),
+        lastContactDate: daysAgo(150),
         notes: 'Introduced by Sarah Chen',
+        degree: 1,
     },
     {
         id: '10',
@@ -111,105 +126,193 @@ export const mockConnections: Connection[] = [
         company: 'Wilson & Associates',
         industry: 'Legal',
         email: 'jwilson@wilsonlaw.com',
-        lastContactDate: daysAgo(75),
+        lastContactDate: daysAgo(180),
+        degree: 1,
     },
 
-    // Cold connections (3+ months)
+    // ========================================
+    // 2ND DEGREE CONNECTIONS (Friend of friend)
+    // ========================================
+
+    // Connected through Sarah Chen (id: 1)
     {
         id: '11',
-        name: 'Rebecca Martinez',
-        title: 'Startup Advisor',
-        company: 'Accelerate Partners',
-        industry: 'Consulting',
-        email: 'rebecca@accelerate.vc',
-        lastContactDate: daysAgo(120),
-        notes: 'Met at startup summit 2024',
-    },
-    {
-        id: '12',
-        name: 'Thomas Anderson',
-        title: 'Real Estate Developer',
-        company: 'Urban Spaces',
-        industry: 'Real Estate',
-        email: 'tanderson@urbanspaces.com',
-        phone: '+1 (555) 444-5555',
-        lastContactDate: daysAgo(180),
-    },
-    {
-        id: '13',
-        name: 'Nicole Brown',
-        title: 'Professor of CS',
-        company: 'Stanford University',
-        industry: 'Education',
-        email: 'nbrown@stanford.edu',
-        lastContactDate: daysAgo(200),
-        notes: 'Guest lecturer contact',
-    },
-    {
-        id: '14',
         name: 'Alex Turner',
         title: 'CTO',
         company: 'DataDrive',
         industry: 'Technology',
         email: 'alex@datadrive.io',
-        lastContactDate: daysAgo(150),
+        lastContactDate: daysAgo(60),
+        notes: 'Sarah\'s former colleague',
+        degree: 2,
+        connectedThrough: '1',
     },
     {
-        id: '15',
-        name: 'Samantha Lee',
-        title: 'Sales Manager',
-        company: 'GlobalTech',
+        id: '12',
+        name: 'Priya Sharma',
+        title: 'ML Engineer',
+        company: 'AI Labs',
+        industry: 'Technology',
+        email: 'priya@ailabs.com',
+        lastContactDate: daysAgo(90),
+        degree: 2,
+        connectedThrough: '1',
+    },
+
+    // Connected through Marcus Johnson (id: 2)
+    {
+        id: '13',
+        name: 'Chris Anderson',
+        title: 'Account Executive',
+        company: 'SalesForce Pro',
         industry: 'Sales',
-        email: 'slee@globaltech.com',
-        lastContactDate: daysAgo(95),
-        notes: 'Previous client contact',
+        email: 'canderson@sfpro.com',
+        lastContactDate: daysAgo(30),
+        notes: 'Marcus\' top sales partner',
+        degree: 2,
+        connectedThrough: '2',
+    },
+    {
+        id: '14',
+        name: 'Diana Ross',
+        title: 'Business Development',
+        company: 'GrowthCo',
+        industry: 'Sales',
+        email: 'dross@growthco.com',
+        lastContactDate: daysAgo(45),
+        degree: 2,
+        connectedThrough: '2',
+    },
+
+    // Connected through David Kim (id: 4)
+    {
+        id: '15',
+        name: 'Thomas Lee',
+        title: 'Portfolio Manager',
+        company: 'Alpha Investments',
+        industry: 'Finance',
+        email: 'tlee@alphainv.com',
+        lastContactDate: daysAgo(20),
+        notes: 'David\'s investment contact',
+        degree: 2,
+        connectedThrough: '4',
     },
     {
         id: '16',
-        name: 'Christopher Davis',
-        title: 'Design Director',
-        company: 'Creative Labs',
-        industry: 'Design',
-        email: 'cdavis@creativelabs.com',
-        lastContactDate: daysAgo(130),
+        name: 'Rachel Green',
+        title: 'VC Partner',
+        company: 'Seed Ventures',
+        industry: 'Finance',
+        email: 'rgreen@seedvc.com',
+        lastContactDate: daysAgo(80),
+        degree: 2,
+        connectedThrough: '4',
     },
+
+    // Connected through Jennifer Walsh (id: 5)
     {
         id: '17',
-        name: 'Maria Garcia',
-        title: 'Healthcare Administrator',
-        company: 'City Hospital',
-        industry: 'Healthcare',
-        email: 'mgarcia@cityhospital.org',
-        lastContactDate: daysAgo(210),
+        name: 'Kevin Hart',
+        title: 'Creative Director',
+        company: 'AdVenture Agency',
+        industry: 'Marketing',
+        email: 'khart@adventure.com',
+        lastContactDate: daysAgo(55),
+        degree: 2,
+        connectedThrough: '5',
     },
+
+    // Connected through Amanda Foster (id: 7)
     {
         id: '18',
-        name: 'Daniel Wright',
-        title: 'Financial Advisor',
-        company: 'Wealth Partners',
-        industry: 'Finance',
-        email: 'dwright@wealthpartners.com',
-        phone: '+1 (555) 666-7777',
-        lastContactDate: daysAgo(100),
+        name: 'Sophia Martinez',
+        title: 'Product Designer',
+        company: 'DesignHub',
+        industry: 'Design',
+        email: 'sophia@designhub.io',
+        lastContactDate: daysAgo(40),
+        notes: 'Amanda\'s design colleague',
+        degree: 2,
+        connectedThrough: '7',
     },
+
+    // ========================================
+    // 3RD DEGREE CONNECTIONS
+    // ========================================
+
+    // Connected through Alex Turner (id: 11, who connects through Sarah)
     {
         id: '19',
-        name: 'Jessica Taylor',
-        title: 'Marketing Manager',
-        company: 'AdVenture',
-        industry: 'Marketing',
-        email: 'jtaylor@adventure.com',
-        lastContactDate: daysAgo(140),
-    },
-    {
-        id: '20',
         name: 'Ryan Miller',
         title: 'Software Engineer',
         company: 'CodeCraft',
         industry: 'Engineering',
         email: 'rmiller@codecraft.dev',
         linkedIn: 'linkedin.com/in/ryanmiller',
-        lastContactDate: daysAgo(170),
-        notes: 'Former colleague',
+        lastContactDate: daysAgo(100),
+        notes: 'Alex\'s engineering contact',
+        degree: 3,
+        connectedThrough: '11',
+    },
+    {
+        id: '20',
+        name: 'Emma Watson',
+        title: 'DevOps Lead',
+        company: 'CloudOps',
+        industry: 'Technology',
+        email: 'ewatson@cloudops.io',
+        lastContactDate: daysAgo(120),
+        degree: 3,
+        connectedThrough: '11',
+    },
+
+    // Connected through Thomas Lee (id: 15, who connects through David)
+    {
+        id: '21',
+        name: 'Michael Brown',
+        title: 'Hedge Fund Manager',
+        company: 'Capital Peak',
+        industry: 'Finance',
+        email: 'mbrown@capitalpeak.com',
+        lastContactDate: daysAgo(200),
+        degree: 3,
+        connectedThrough: '15',
+    },
+
+    // Connected through Chris Anderson (id: 13, who connects through Marcus)
+    {
+        id: '22',
+        name: 'Jessica Taylor',
+        title: 'Enterprise Sales',
+        company: 'BigDeal Inc',
+        industry: 'Sales',
+        email: 'jtaylor@bigdeal.com',
+        lastContactDate: daysAgo(70),
+        degree: 3,
+        connectedThrough: '13',
+    },
+    {
+        id: '23',
+        name: 'Brandon Smith',
+        title: 'Sales Engineer',
+        company: 'TechSales',
+        industry: 'Sales',
+        email: 'bsmith@techsales.com',
+        lastContactDate: daysAgo(85),
+        degree: 3,
+        connectedThrough: '13',
+    },
+
+    // Connected through Sophia Martinez (id: 18, who connects through Amanda)
+    {
+        id: '24',
+        name: 'Olivia White',
+        title: 'UI Designer',
+        company: 'PixelPerfect',
+        industry: 'Design',
+        email: 'owhite@pixelperfect.io',
+        lastContactDate: daysAgo(110),
+        degree: 3,
+        connectedThrough: '18',
     },
 ];

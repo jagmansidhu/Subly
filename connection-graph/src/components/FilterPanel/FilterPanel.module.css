@@ -155,3 +155,40 @@
     color: var(--text-primary);
     margin-top: 0.25rem;
 }
+
+/* Degree Filter Styles */
+.degreeFilters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.degreeOption {
+    cursor: pointer;
+}
+
+.degreeOption input {
+    display: none;
+}
+
+.degreeBadge {
+    display: inline-block;
+    padding: 0.4rem 0.7rem;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+
+.degreeBadge:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.degreeBadge.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}

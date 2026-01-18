@@ -375,58 +375,78 @@
     font-weight: 500;
 }
 
-/* Connect Card */
+/* Connect Card - Premium Apple Style */
 .connectCard {
-    max-width: 400px;
-    margin: 100px auto;
-    padding: 44px 36px;
-    background: rgba(28, 28, 30, 0.6);
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 56px 48px;
+    background: linear-gradient(180deg, rgba(38, 38, 42, 0.9) 0%, rgba(28, 28, 30, 0.95) 100%);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
-    border: 0.5px solid rgba(255, 255, 255, 0.08);
-    border-radius: 20px;
+    border: 0.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
     text-align: center;
+    box-shadow:
+        0 0 0 0.5px rgba(255, 255, 255, 0.05),
+        0 20px 60px rgba(0, 0, 0, 0.4),
+        0 0 120px rgba(10, 132, 255, 0.08);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .connectIcon {
-    width: 48px;
-    height: 48px;
+    width: 64px;
+    height: 64px;
     color: #0a84ff;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
+    filter: drop-shadow(0 4px 12px rgba(10, 132, 255, 0.3));
 }
 
 .connectTitle {
-    font-size: 22px;
+    font-size: 28px;
     font-weight: 600;
     color: #fff;
-    margin-bottom: 10px;
-    letter-spacing: -0.022em;
+    margin-bottom: 12px;
+    letter-spacing: -0.03em;
 }
 
 .connectDescription {
-    font-size: 15px;
+    font-size: 16px;
     color: rgba(255, 255, 255, 0.55);
-    line-height: 1.5;
-    margin-bottom: 24px;
+    line-height: 1.55;
+    margin-bottom: 32px;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .connectButton {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    background: #0a84ff;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 32px;
+    background: linear-gradient(180deg, #2997ff 0%, #0a84ff 100%);
     color: #fff;
     text-decoration: none;
-    border-radius: 12px;
-    font-size: 15px;
+    border-radius: 14px;
+    font-size: 17px;
     font-weight: 600;
     transition: all 0.2s ease;
+    box-shadow:
+        0 4px 16px rgba(10, 132, 255, 0.35),
+        0 0 0 0.5px rgba(255, 255, 255, 0.1) inset;
+    width: 100%;
 }
 
 .connectButton:hover {
-    background: #409cff;
-    transform: scale(1.02);
+    background: linear-gradient(180deg, #409cff 0%, #2997ff 100%);
+    transform: translateY(-2px);
+    box-shadow:
+        0 8px 24px rgba(10, 132, 255, 0.4),
+        0 0 0 0.5px rgba(255, 255, 255, 0.15) inset;
 }
 
 .googleIcon {

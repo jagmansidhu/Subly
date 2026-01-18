@@ -16,11 +16,23 @@ export async function GET() {
             email: row.EMAIL || undefined,
             phone: row.PHONE || undefined,
             linkedIn: row.LINKEDIN || undefined,
-            lastContactDate: row.LAST_CONTACT_DATE ? new Date(row.LAST_CONTACT_DATE as string).toISOString() : new Date().toISOString(),
-            degree: (row.DEGREE as number) || 1,
-            connectedThrough: row.CONNECTED_THROUGH || undefined,
-            notes: row.NOTES || undefined,
+            lastContactDate: (() => {
+                try {
+                    if (row.LAST_CONTACT_DATE) {
+                        const d = new Date(row.LAST_CONTACT_DATE as string);
+                        return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+                    }
+                    return new Date().toISOString();
+                } catch {
+                    return new Date().toISOString();
+                }
+            })(),
+            degree: (Number(row.DEGREE) || 1) as 1 | 2 | 3,
+            connectedThrough: row.CONNECTED_THROUGH ? String(row.CONNECTED_THROUGH) : undefined,
+            notes: row.NOTES ? String(row.NOTES) : undefined,
         }));
+
+        console.log('Fetched connections from Snowflake:', connections.length, connections);
 
         return NextResponse.json({ connections });
     } catch (error) {

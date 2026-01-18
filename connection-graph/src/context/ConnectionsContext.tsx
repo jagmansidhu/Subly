@@ -47,9 +47,9 @@ interface ConnectionsContextType {
 const ConnectionsContext = createContext<ConnectionsContextType | undefined>(undefined);
 
 export function ConnectionsProvider({ children }: { children: React.ReactNode }) {
-    // Raw connections state
-    const [rawConnections, setRawConnections] = useState<Connection[]>(mockConnections);
-    const [isLoading, setIsLoading] = useState(false);
+    // Raw connections state - start empty if Snowflake mode, otherwise use mock
+    const [rawConnections, setRawConnections] = useState<Connection[]>(USE_SNOWFLAKE_API ? [] : mockConnections);
+    const [isLoading, setIsLoading] = useState(USE_SNOWFLAKE_API);
 
     // Fetch connections from Snowflake API on mount
     useEffect(() => {
@@ -61,14 +61,20 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
                 const response = await fetch('/api/connections');
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('API response:', data);
                     if (data.connections && data.connections.length > 0) {
                         // Convert date strings back to Date objects
                         const connections = data.connections.map((conn: Connection & { lastContactDate: string }) => ({
                             ...conn,
                             lastContactDate: new Date(conn.lastContactDate),
                         }));
+                        console.log('Processed connections:', connections);
                         setRawConnections(connections);
+                    } else {
+                        console.log('No connections returned from API');
                     }
+                } else {
+                    console.error('API returned error:', response.status);
                 }
             } catch (error) {
                 console.error('Failed to fetch connections from API:', error);

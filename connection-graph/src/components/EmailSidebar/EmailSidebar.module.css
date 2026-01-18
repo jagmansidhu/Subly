@@ -1,0 +1,89 @@
+.sidebar {
+    background: rgba(28, 28, 30, 0.5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    height: fit-content;
+    position: sticky;
+    top: 24px;
+}
+
+.section {
+    margin-bottom: 24px;
+}
+
+.section:last-child {
+    margin-bottom: 0;
+}
+
+.sectionTitle {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+.card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--border-hover);
+}
+
+.card:last-child {
+    margin-bottom: 0;
+}
+
+.focusCard {
+    border-left: 3px solid var(--heat-hot);
+}
+
+.winCard {
+    border-left: 3px solid var(--heat-cold);
+}
+
+.cardTitle {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cardMeta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+
+.tipCard {
+    background: var(--accent-glow);
+    border: 1px solid rgba(191, 90, 242, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+}
+
+.tipText {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.emptyText {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-style: italic;
+}

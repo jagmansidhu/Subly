@@ -76,33 +76,38 @@ EMAILS TO ANALYZE:
 
 // Format a single email for the prompt
 export function formatEmailForPrompt(email: ParsedEmail): string {
-    const daysOld = Math.floor((Date.now() - email.date.getTime()) / (1000 * 60 * 60 * 24));
+  const daysOld = Math.floor((Date.now() - email.date.getTime()) / (1000 * 60 * 60 * 24));
 
-    // Truncate body to avoid token limits
-    const maxBodyLength = 2000;
-    const truncatedBody = email.body.length > maxBodyLength
-        ? email.body.substring(0, maxBodyLength) + '...[truncated]'
-        : email.body;
+  // Truncate body to avoid token limits (aggressive for free tier)
+  const maxBodyLength = 500;
+  const truncatedBody = email.snippet // Prefer snippet if available as it's cleaner
+    ? email.snippet
+    : (email.body.length > maxBodyLength
+      ? email.body.substring(0, maxBodyLength) + '...[truncated]'
+      : email.body);
 
-    return EMAIL_ANALYSIS_PROMPT
-        .replace('{from}', email.from)
-        .replace('{fromEmail}', email.fromEmail)
-        .replace('{subject}', email.subject)
-        .replace('{date}', email.date.toLocaleString())
-        .replace('{isStarred}', email.isStarred ? 'Yes' : 'No')
-        .replace('{daysOld}', daysOld.toString())
-        .replace('{body}', truncatedBody);
+  return EMAIL_ANALYSIS_PROMPT
+    .replace('{from}', email.from)
+    .replace('{fromEmail}', email.fromEmail)
+    .replace('{subject}', email.subject)
+    .replace('{date}', email.date.toLocaleString())
+    .replace('{isStarred}', email.isStarred ? 'Yes' : 'No')
+    .replace('{daysOld}', daysOld.toString())
+    .replace('{body}', truncatedBody);
 }
 
 // Format multiple emails for batch analysis
 export function formatEmailsForBatchPrompt(emails: ParsedEmail[]): string {
-    const emailSummaries = emails.map((email, index) => {
-        const daysOld = Math.floor((Date.now() - email.date.getTime()) / (1000 * 60 * 60 * 24));
-        const truncatedBody = email.body.length > 500
-            ? email.body.substring(0, 500) + '...'
-            : email.body;
+  const emailSummaries = emails.map((email, index) => {
+    const daysOld = Math.floor((Date.now() - email.date.getTime()) / (1000 * 60 * 60 * 24));
+    // Use snippet mostly for batch to be very light
+    const truncatedBody = email.snippet && email.snippet.length > 10
+      ? email.snippet.substring(0, 200)
+      : (email.body.length > 150
+        ? email.body.substring(0, 150) + '...'
+        : email.body);
 
-        return `
+    return `
 [Email ${index + 1}]
 ID: ${email.id}
 From: ${email.from} <${email.fromEmail}>
@@ -111,7 +116,7 @@ Date: ${email.date.toLocaleString()} (${daysOld} days ago)
 Starred: ${email.isStarred ? 'Yes' : 'No'}
 Preview: ${truncatedBody}
 `;
-    }).join('\n---\n');
+  }).join('\n---\n');
 
-    return BATCH_ANALYSIS_PROMPT.replace('{emails}', emailSummaries);
+  return BATCH_ANALYSIS_PROMPT.replace('{emails}', emailSummaries);
 }

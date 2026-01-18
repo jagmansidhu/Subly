@@ -9,85 +9,82 @@ interface EmailCardProps {
     onOpen?: () => void;
 }
 
-export function EmailCard({ email, onOpen }: EmailCardProps) {
+export function EmailCard({ email }: EmailCardProps) {
     const [expanded, setExpanded] = useState(false);
+    const priorityClass = email.analysis.priority.toLowerCase();
     const { analysis } = email;
 
     const formatDate = (date: Date) => {
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffDays === 0) return 'Today';
-        if (diffDays === 1) return 'Yesterday';
-        if (diffDays < 7) return `${diffDays} days ago`;
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+        }).format(date);
     };
 
-    const getResponseTimeClass = () => {
-        switch (analysis.suggestedResponseTime) {
-            case 'ASAP': return styles.urgent;
-            case 'This week': return styles.thisWeek;
-            default: return styles.convenient;
-        }
+    const handleCardClick = () => {
+        // Open the email thread in a new tab
+        window.open(`https://mail.google.com/mail/u/0/#inbox/${email.threadId}`, '_blank');
     };
 
-    const handleClick = () => {
+    const handleExpand = (e: React.MouseEvent) => {
+        e.stopPropagation();
         setExpanded(!expanded);
-        if (onOpen) onOpen();
     };
 
     return (
-        <article
-            className={`${styles.emailCard} ${styles[analysis.priority.toLowerCase()]} ${expanded ? styles.expanded : ''}`}
-            onClick={handleClick}
+        <div
+            className={`${styles.card} ${styles[priorityClass]} ${expanded ? styles.expanded : ''}`}
+            onClick={handleCardClick}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+            style={{ cursor: 'pointer' }}
         >
             <div className={styles.header}>
-                <div className={styles.senderInfo}>
-                    <p className={styles.sender}>{email.from}</p>
-                    <p className={styles.email}>{email.fromEmail}</p>
+                <div className={styles.headerTop}>
+                    <div className={styles.priorityBadge}>
+                        <span className={styles.priorityDot} />
+                        {email.analysis.priority} Priority
+                    </div>
+                    <span className={styles.date}>{formatDate(email.date)}</span>
                 </div>
-                <div className={styles.badges}>
-                    <span className={`${styles.priorityBadge} ${styles[analysis.priority.toLowerCase()]}`}>
-                        {analysis.priority}
-                    </span>
-                    <span className={styles.actionBadge}>
-                        {analysis.action.replace('_', ' ')}
-                    </span>
+
+                <h3 className={styles.subject}>{email.subject}</h3>
+
+                <div className={styles.sender}>
+                    <span className={styles.fromName}>{email.from}</span>
+                    <span className={styles.fromEmail}>&lt;{email.fromEmail}&gt;</span>
                 </div>
             </div>
 
-            <h3 className={styles.subject}>{email.subject}</h3>
-
-            <p className={styles.summary}>
-                {analysis.summary}
-            </p>
+            <div className={styles.summary}>
+                <p>{email.analysis.summary}</p>
+            </div>
 
             {expanded && analysis.keyPoints && analysis.keyPoints.length > 0 && (
-                <ul className={styles.keyPoints}>
-                    {analysis.keyPoints.map((point, idx) => (
-                        <li key={idx}>{point}</li>
-                    ))}
-                </ul>
-            )}
-
-            {analysis.deadline && (
-                <div className={styles.deadline}>
-                    <svg className={styles.deadlineIcon} viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm-1-13v6l5.25 3.15.75-1.23-4.5-2.67V7h-1.5z" />
-                    </svg>
-                    <span>Deadline: {analysis.deadline}</span>
+                <div className={styles.details}>
+                    <h4>Key Points:</h4>
+                    <ul className={styles.keyPoints}>
+                        {analysis.keyPoints.map((point: string, idx: number) => (
+                            <li key={idx}>{point}</li>
+                        ))}
+                    </ul>
                 </div>
             )}
 
             <div className={styles.footer}>
-                <span className={styles.date}>{formatDate(email.date)}</span>
-                <span className={`${styles.responseTime} ${getResponseTimeClass()}`}>
-                    {analysis.suggestedResponseTime}
-                </span>
+                <div className={styles.actionBadge}>
+                    <span>{analysis.action}</span>
+                </div>
+
+                <button
+                    className={styles.expandButton}
+                    onClick={handleExpand}
+                >
+                    {expanded ? 'Show Less' : 'Show Details'}
+                </button>
             </div>
-        </article>
+        </div>
     );
 }

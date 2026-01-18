@@ -142,6 +142,28 @@ export class GmailService {
         }
     }
 
+    // Get recent emails (primary inbox)
+    async getRecentEmails(maxResults: number = 50): Promise<ParsedEmail[]> {
+        console.log('GmailService: Fetching recent emails...');
+        try {
+            const response = await this.gmail.users.messages.list({
+                userId: 'me',
+                q: 'category:primary', // Focus on primary inbox to avoid noise
+                maxResults,
+            });
+
+            const messages = response.data.messages || [];
+            console.log(`GmailService: Found ${messages.length} recent message IDs`);
+
+            if (messages.length === 0) return [];
+
+            return this.fetchMessages(messages);
+        } catch (error) {
+            console.error('GmailService: Error fetching recent emails:', error);
+            throw error;
+        }
+    }
+
     // Get emails by label
     async getEmailsByLabel(labelId: string, maxResults: number = 50): Promise<ParsedEmail[]> {
         const response = await this.gmail.users.messages.list({

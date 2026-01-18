@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import styles from './EmailDashboard.module.css';
 import { EmailCard } from '../EmailCard';
+import { EmailSidebar } from '../EmailSidebar/EmailSidebar';
 import { EmailHeatmap } from '../EmailHeatmap';
 import type { AnalyzedEmail, Priority, ActionType } from '@/lib/gemini/service';
 
@@ -19,10 +21,21 @@ interface ConnectionStatus {
     email?: string;
 }
 
+interface CachedEmailData {
+    emails: AnalyzedEmail[];
+    stats: EmailStats;
+    timestamp: number;
+    source: 'starred' | 'all';
+}
+
 type FilterType = 'all' | Priority | ActionType;
 
+const CACHE_KEY = 'email_dashboard_cache';
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
+
 export function EmailDashboard() {
-    const [emails, setEmails] = useState<AnalyzedEmail[]>([]);
+    // Master list of all fetched emails (includes starred)
+    const [allEmails, setAllEmails] = useState<AnalyzedEmail[]>([]);
     const [stats, setStats] = useState<EmailStats | null>(null);
     const [status, setStatus] = useState<ConnectionStatus>({ connected: false });
     const [loading, setLoading] = useState(true);
@@ -30,7 +43,65 @@ export function EmailDashboard() {
     const [filter, setFilter] = useState<FilterType>('all');
     const [showHeatmap, setShowHeatmap] = useState(true);
 
+    const [source, setSource] = useState<'starred' | 'all'>('starred');
     const [error, setError] = useState<string | null>(null);
+    const [usingCache, setUsingCache] = useState(false);
+    const [hasLoadedAll, setHasLoadedAll] = useState(false);
+
+    // Derive displayed emails based on source toggle (no API call needed!)
+    const emails = source === 'starred'
+        ? allEmails.filter(e => e.isStarred)
+        : allEmails;
+
+    // Recalculate stats based on current view
+    const displayStats: EmailStats | null = emails.length > 0 ? {
+        total: emails.length,
+        high: emails.filter(e => e.analysis.priority === 'HIGH').length,
+        medium: emails.filter(e => e.analysis.priority === 'MEDIUM').length,
+        low: emails.filter(e => e.analysis.priority === 'LOW').length,
+        needsResponse: emails.filter(e => e.analysis.action === 'RESPONSE_NEEDED').length,
+    } : stats;
+
+    // Load cached data from localStorage
+    const loadFromCache = useCallback((): CachedEmailData | null => {
+        if (typeof window === 'undefined') return null;
+        try {
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (!cached) return null;
+
+            const data: CachedEmailData = JSON.parse(cached);
+
+            // Check if cache is still valid (not expired)
+            if (Date.now() - data.timestamp < CACHE_TTL) {
+                return data;
+            }
+        } catch (e) {
+            console.error('Error loading cache:', e);
+        }
+        return null;
+    }, []);
+
+    // Save data to localStorage (always save all emails as master)
+    const saveToCache = useCallback((emailData: AnalyzedEmail[], statsData: EmailStats) => {
+        if (typeof window === 'undefined') return;
+        try {
+            const cacheData: CachedEmailData = {
+                emails: emailData,
+                stats: statsData,
+                timestamp: Date.now(),
+                source: 'all', // Always store as 'all' since it's the master
+            };
+            localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+        } catch (e) {
+            console.error('Error saving cache:', e);
+        }
+    }, []);
+
+    // Clear cache
+    const clearCache = useCallback(() => {
+        if (typeof window === 'undefined') return;
+        localStorage.removeItem(CACHE_KEY);
+    }, []);
 
     const checkConnection = useCallback(async () => {
         try {
@@ -44,13 +115,34 @@ export function EmailDashboard() {
         }
     }, []);
 
-    const fetchEmails = useCallback(async () => {
+    // Fetch emails based on current source
+    const fetchEmails = useCallback(async (forceRefresh = false, fetchSource?: 'starred' | 'all') => {
+        const targetSource = fetchSource || source;
         setError(null);
+
+        // Try to load from cache first (unless forcing refresh)
+        if (!forceRefresh) {
+            const cached = loadFromCache();
+            if (cached && cached.source === targetSource) {
+                const emailsWithDates = cached.emails.map((email: AnalyzedEmail) => ({
+                    ...email,
+                    date: new Date(email.date),
+                }));
+                setAllEmails(emailsWithDates);
+                setStats(cached.stats);
+                setUsingCache(true);
+                return;
+            }
+        }
+
+        setUsingCache(false);
+
         try {
-            const res = await fetch('/api/email/starred');
+            const res = await fetch(`/api/email/list?filter=${targetSource}`);
             if (!res.ok) {
                 if (res.status === 401) {
                     setStatus({ connected: false });
+                    clearCache();
                     return;
                 }
                 const errData = await res.json();
@@ -63,17 +155,41 @@ export function EmailDashboard() {
                 date: new Date(email.date),
             }));
 
-            setEmails(emailsWithDates);
+            // When fetching 'all', merge with existing starred emails to preserve them
+            if (targetSource === 'all' && allEmails.length > 0) {
+                const existingStarred = allEmails.filter(e => e.isStarred);
+                const newEmailIds = new Set(emailsWithDates.map((e: AnalyzedEmail) => e.id));
+                // Add any starred emails that aren't in the new batch
+                const mergedEmails = [
+                    ...emailsWithDates,
+                    ...existingStarred.filter(e => !newEmailIds.has(e.id))
+                ];
+                setAllEmails(mergedEmails);
+            } else {
+                setAllEmails(emailsWithDates);
+            }
+
             setStats(data.stats);
+
+            // Save to cache with source info
+            if (typeof window !== 'undefined') {
+                const cacheData: CachedEmailData = {
+                    emails: emailsWithDates,
+                    stats: data.stats,
+                    timestamp: Date.now(),
+                    source: targetSource,
+                };
+                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+            }
         } catch (error: any) {
             console.error('Error fetching emails:', error);
             setError(error.message || 'An unexpected error occurred');
         }
-    }, []);
+    }, [source, loadFromCache, clearCache, allEmails]);
 
     const refresh = async () => {
         setRefreshing(true);
-        await fetchEmails();
+        await fetchEmails(true); // Force refresh, bypass cache
         setRefreshing(false);
     };
 
@@ -81,8 +197,10 @@ export function EmailDashboard() {
         try {
             await fetch('/api/email/status', { method: 'DELETE' });
             setStatus({ connected: false });
-            setEmails([]);
+            setAllEmails([]);
             setStats(null);
+            clearCache(); // Clear cache on disconnect
+            setHasLoadedAll(false); // Reset so next login fetches fresh
         } catch (error) {
             console.error('Error disconnecting:', error);
         }
@@ -93,14 +211,29 @@ export function EmailDashboard() {
             setLoading(true);
             const connected = await checkConnection();
             if (connected) {
-                await fetchEmails();
+                await fetchEmails(false, 'starred'); // Start with starred
+            } else {
+                clearCache(); // Clear cache if not connected
             }
             setLoading(false);
         };
         init();
-    }, [checkConnection, fetchEmails]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only run on mount
 
-    const filteredEmails = emails.filter(email => {
+    // Effect to handle source toggle - fetch new data when switching to 'all'
+    useEffect(() => {
+        if (!loading && status.connected && source === 'all' && !hasLoadedAll) {
+            // User switched to 'all' for the first time, fetch 6 emails
+            setRefreshing(true);
+            fetchEmails(true, 'all').then(() => {
+                setRefreshing(false);
+                setHasLoadedAll(true);
+            });
+        }
+    }, [source, loading, status.connected, hasLoadedAll, fetchEmails]);
+
+    const filteredEmails = emails.filter((email: AnalyzedEmail) => {
         if (filter === 'all') return true;
         if (['HIGH', 'MEDIUM', 'LOW'].includes(filter)) {
             return email.analysis.priority === filter;
@@ -148,22 +281,56 @@ export function EmailDashboard() {
     return (
         <div className={styles.container}>
             <header className={styles.header}>
+                <div className={styles.navBar}>
+                    <Link href="/" className={styles.navLink}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Home
+                    </Link>
+                    <Link href="/connections" className={styles.navLink}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Connections
+                    </Link>
+                </div>
                 <div className={styles.headerRow}>
                     <div>
                         <h1 className={styles.title}>Email Intelligence</h1>
-                        <p className={styles.subtitle}>AI-powered analysis of your starred emails</p>
+                        <p className={styles.subtitle}>AI-powered analysis of your {source === 'starred' ? 'starred' : 'recent'} emails</p>
                     </div>
                     <div className={styles.headerRow}>
+                        <div className={styles.sourceToggle}>
+                            <button
+                                className={`${styles.toggleOpt} ${source === 'starred' ? styles.active : ''}`}
+                                onClick={() => setSource('starred')}
+                            >
+                                Starred
+                            </button>
+                            <button
+                                className={`${styles.toggleOpt} ${source === 'all' ? styles.active : ''}`}
+                                onClick={() => setSource('all')}
+                            >
+                                All Recent
+                            </button>
+                        </div>
+
                         <div className={styles.connectedEmail}>
                             <span className={styles.connectedDot} />
                             {status.email}
                         </div>
+                        {usingCache && (
+                            <span className={styles.cacheIndicator}>
+                                ⚡ Cached
+                            </span>
+                        )}
                         <button
                             className={styles.refreshButton}
                             onClick={refresh}
                             disabled={refreshing}
                         >
-                            {refreshing ? 'Refreshing...' : 'Refresh'}
+                            {refreshing ? 'Refreshing...' : usingCache ? 'Refresh from Gmail' : 'Refresh'}
                         </button>
                         <button className={styles.disconnectButton} onClick={disconnect}>
                             Disconnect
@@ -186,108 +353,119 @@ export function EmailDashboard() {
                     <br />
                     <small>Check the browser console for details.</small>
                 </div>
-            )}
+            )
+            }
 
-            {stats && (
-                <div className={styles.statsGrid}>
-                    <div className={styles.statCard}>
-                        <div className={styles.statValue}>{stats.total}</div>
-                        <div className={styles.statLabel}>Total Starred</div>
-                    </div>
-                    <div className={styles.statCard}>
-                        <div className={`${styles.statValue} ${styles.high}`}>{stats.high}</div>
-                        <div className={styles.statLabel}>High Priority</div>
-                    </div>
-                    <div className={styles.statCard}>
-                        <div className={`${styles.statValue} ${styles.medium}`}>{stats.medium}</div>
-                        <div className={styles.statLabel}>Medium Priority</div>
-                    </div>
-                    <div className={styles.statCard}>
-                        <div className={`${styles.statValue} ${styles.low}`}>{stats.low}</div>
-                        <div className={styles.statLabel}>Low Priority</div>
-                    </div>
-                    <div className={styles.statCard}>
-                        <div className={`${styles.statValue} ${styles.response}`}>{stats.needsResponse}</div>
-                        <div className={styles.statLabel}>Needs Response</div>
-                    </div>
-                </div>
-            )}
+            <div className={styles.dashboardLayout}>
+                <EmailSidebar emails={emails} />
 
-            {/* Heatmap Visualization */}
-            {emails.length > 0 && (
-                <div className={styles.heatmapSection}>
-                    <div className={styles.heatmapHeader}>
-                        <h2 className={styles.sectionTitle}>Urgency Heatmap</h2>
+                <main className={styles.mainContent}>
+                    {displayStats && (
+                        <div className={styles.statsGrid}>
+                            <div className={styles.statCard}>
+                                <div className={styles.statValue}>{displayStats.total}</div>
+                                <div className={styles.statLabel}>Total Emails</div>
+                            </div>
+                            <div className={styles.statCard}>
+                                <div className={`${styles.statValue} ${styles.high}`}>{displayStats.high}</div>
+                                <div className={styles.statLabel}>High Priority</div>
+                            </div>
+                            <div className={styles.statCard}>
+                                <div className={`${styles.statValue} ${styles.medium}`}>{displayStats.medium}</div>
+                                <div className={styles.statLabel}>Medium Priority</div>
+                            </div>
+                            <div className={styles.statCard}>
+                                <div className={`${styles.statValue} ${styles.low}`}>{displayStats.low}</div>
+                                <div className={styles.statLabel}>Low Priority</div>
+                            </div>
+                            <div className={styles.statCard}>
+                                <div className={`${styles.statValue} ${styles.response}`}>{displayStats.needsResponse}</div>
+                                <div className={styles.statLabel}>Needs Response</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Heatmap Visualization */}
+                    {emails.length > 0 && (
+                        <div className={styles.heatmapSection}>
+                            <div className={styles.heatmapHeader}>
+                                <h2 className={styles.sectionTitle}>Urgency Heatmap</h2>
+                                <button
+                                    className={styles.toggleButton}
+                                    onClick={() => setShowHeatmap(!showHeatmap)}
+                                >
+                                    {showHeatmap ? 'Hide' : 'Show'} Heatmap
+                                </button>
+                            </div>
+                            {showHeatmap && (
+                                <EmailHeatmap
+                                    emails={emails}
+                                    height={350}
+                                />
+                            )}
+                        </div>
+                    )}
+
+                    <div className={styles.filterBar}>
                         <button
-                            className={styles.toggleButton}
-                            onClick={() => setShowHeatmap(!showHeatmap)}
+                            className={`${styles.filterButton} ${filter === 'all' ? styles.active : ''}`}
+                            onClick={() => setFilter('all')}
                         >
-                            {showHeatmap ? 'Hide' : 'Show'} Heatmap
+                            All
+                        </button>
+                        <button
+                            className={`${styles.filterButton} ${filter === 'HIGH' ? styles.active : ''}`}
+                            onClick={() => setFilter('HIGH')}
+                        >
+                            🔴 High Priority
+                        </button>
+                        <button
+                            className={`${styles.filterButton} ${filter === 'MEDIUM' ? styles.active : ''}`}
+                            onClick={() => setFilter('MEDIUM')}
+                        >
+                            🟡 Medium
+                        </button>
+                        <button
+                            className={`${styles.filterButton} ${filter === 'RESPONSE_NEEDED' ? styles.active : ''}`}
+                            onClick={() => setFilter('RESPONSE_NEEDED')}
+                        >
+                            ✉️ Needs Response
+                        </button>
+                        <button
+                            className={`${styles.filterButton} ${filter === 'DEADLINE' ? styles.active : ''}`}
+                            onClick={() => setFilter('DEADLINE')}
+                        >
+                            ⏰ Has Deadline
                         </button>
                     </div>
-                    {showHeatmap && (
-                        <EmailHeatmap
-                            emails={emails}
-                            height={350}
-                        />
+
+                    {filteredEmails.length === 0 ? (
+                        <div className={styles.emptyState}>
+                            <svg className={styles.emptyIcon} viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20 6H4l8 5 8-5zm0 2l-8 5-8-5v10h16V8z" />
+                            </svg>
+                            <h3 className={styles.emptyTitle}>
+                                {emails.length === 0
+                                    ? `No ${source === 'starred' ? 'starred' : 'recent'} emails found`
+                                    : 'No emails match this filter'}
+                            </h3>
+                            <p>
+                                {emails.length === 0
+                                    ? (source === 'starred'
+                                        ? 'Star some emails in Gmail to see them analyzed here.'
+                                        : 'Your inbox seems empty or we couldn\'t fetch messages.')
+                                    : 'Try a different filter to see more emails.'}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className={styles.emailGrid}>
+                            {filteredEmails.map(email => (
+                                <EmailCard key={email.id} email={email} />
+                            ))}
+                        </div>
                     )}
-                </div>
-            )}
-
-            <div className={styles.filterBar}>
-                <button
-                    className={`${styles.filterButton} ${filter === 'all' ? styles.active : ''}`}
-                    onClick={() => setFilter('all')}
-                >
-                    All
-                </button>
-                <button
-                    className={`${styles.filterButton} ${filter === 'HIGH' ? styles.active : ''}`}
-                    onClick={() => setFilter('HIGH')}
-                >
-                    🔴 High Priority
-                </button>
-                <button
-                    className={`${styles.filterButton} ${filter === 'MEDIUM' ? styles.active : ''}`}
-                    onClick={() => setFilter('MEDIUM')}
-                >
-                    🟡 Medium
-                </button>
-                <button
-                    className={`${styles.filterButton} ${filter === 'RESPONSE_NEEDED' ? styles.active : ''}`}
-                    onClick={() => setFilter('RESPONSE_NEEDED')}
-                >
-                    ✉️ Needs Response
-                </button>
-                <button
-                    className={`${styles.filterButton} ${filter === 'DEADLINE' ? styles.active : ''}`}
-                    onClick={() => setFilter('DEADLINE')}
-                >
-                    ⏰ Has Deadline
-                </button>
+                </main>
             </div>
-
-            {filteredEmails.length === 0 ? (
-                <div className={styles.emptyState}>
-                    <svg className={styles.emptyIcon} viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20 6H4l8 5 8-5zm0 2l-8 5-8-5v10h16V8z" />
-                    </svg>
-                    <h3 className={styles.emptyTitle}>
-                        {emails.length === 0 ? 'No starred emails' : 'No emails match this filter'}
-                    </h3>
-                    <p>
-                        {emails.length === 0
-                            ? 'Star some emails in Gmail to see them analyzed here.'
-                            : 'Try a different filter to see more emails.'}
-                    </p>
-                </div>
-            ) : (
-                <div className={styles.emailGrid}>
-                    {filteredEmails.map(email => (
-                        <EmailCard key={email.id} email={email} />
-                    ))}
-                </div>
-            )}
-        </div>
+        </div >
     );
 }

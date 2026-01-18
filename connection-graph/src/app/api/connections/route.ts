@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery, executeInsert } from '@/lib/snowflake';
 
-// GET - Fetch all connections from Snowflake
 export async function GET() {
     try {
         const rows = await executeQuery(`SELECT * FROM CONNECTIONS ORDER BY CREATED_AT DESC`);
 
-        // Transform Snowflake rows to frontend format
         const connections = rows.map(row => ({
             id: row.ID as string,
             name: row.NAME as string,
@@ -21,10 +19,9 @@ export async function GET() {
                     const rawDate = row.LAST_CONTACT_DATE;
 
                     if (rawDate) {
-                        // Snowflake returns epoch seconds as a string like "1768513732.630000000"
                         const epochSeconds = parseFloat(String(rawDate));
                         if (!isNaN(epochSeconds)) {
-                            const d = new Date(epochSeconds * 1000); // Convert seconds to milliseconds
+                            const d = new Date(epochSeconds * 1000);
                             return d.toISOString();
                         }
                     }
@@ -51,14 +48,12 @@ export async function GET() {
     }
 }
 
-// POST - Insert new connection(s) to Snowflake
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const connections = Array.isArray(body) ? body : [body];
 
         for (const conn of connections) {
-            // Escape single quotes in strings
             const escape = (val: unknown) => val ? String(val).replace(/'/g, "''") : null;
 
             const sql = `
@@ -92,7 +87,6 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// DELETE - Remove a connection from Snowflake
 export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -105,11 +99,10 @@ export async function DELETE(request: NextRequest) {
             );
         }
 
-        // Escape single quotes
         const escapedId = id.replace(/'/g, "''");
         const sql = `DELETE FROM CONNECTIONS WHERE ID = '${escapedId}'`;
 
-        await executeInsert(sql); // executeInsert works for any SQL that doesn't return rows
+        await executeInsert(sql);
 
         return NextResponse.json({ success: true, deletedId: id });
     } catch (error) {

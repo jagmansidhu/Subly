@@ -8,15 +8,9 @@ import styles from './ConnectionDetails.module.css';
 export default function ConnectionDetails() {
     const { selectedConnection, selectConnection } = useConnections();
 
+    // Don't render anything if no connection is selected
     if (!selectedConnection) {
-        return (
-            <aside className={styles.panel}>
-                <div className={styles.emptyState}>
-                    <div className={styles.emptyIcon}>👆</div>
-                    <p>Click on a connection to view details</p>
-                </div>
-            </aside>
-        );
+        return null;
     }
 
     const conn = selectedConnection;

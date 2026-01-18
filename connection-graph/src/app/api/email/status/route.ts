@@ -17,7 +17,6 @@ export async function GET() {
             return NextResponse.json({ connected: false });
         }
 
-        // Verify connection by getting profile
         const gmailService = new GmailService(tokens);
         const profile = await gmailService.getProfile();
 
@@ -31,7 +30,6 @@ export async function GET() {
     }
 }
 
-// Disconnect Gmail
 export async function DELETE() {
     try {
         const cookieStore = await cookies();

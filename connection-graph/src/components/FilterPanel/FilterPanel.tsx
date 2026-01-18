@@ -111,9 +111,9 @@ export default function FilterPanel() {
                                     opacity: filters.heatStatuses.length === 0 || filters.heatStatuses.includes(status) ? 1 : 0.4
                                 }}
                             >
-                                {status === 'hot' && `🔥 Hot (${stats.hot})`}
-                                {status === 'warm' && `🟡 Warm (${stats.warm})`}
-                                {status === 'cold' && `🔵 Cold (${stats.cold})`}
+                                {status === 'hot' && `Hot (${stats.hot})`}
+                                {status === 'warm' && `Warm (${stats.warm})`}
+                                {status === 'cold' && `Cold (${stats.cold})`}
                             </span>
                         </label>
                     ))}

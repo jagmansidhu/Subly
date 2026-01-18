@@ -91,23 +91,27 @@
 
 .heatBadge {
     width: 100%;
-    padding: 10px 14px;
+    padding: 12px 16px;
     border-radius: var(--radius-md);
     font-size: 14px;
-    font-weight: 500;
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    border: 1px solid transparent;
+    font-weight: 600;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    border: 2px solid transparent;
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .heatOption:hover .heatBadge {
-    background: var(--bg-elevated);
-    color: var(--text-primary);
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .heatOption input:checked+.heatBadge {
-    border-color: currentColor;
+    border-color: #fff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
 /* Industry Filters */

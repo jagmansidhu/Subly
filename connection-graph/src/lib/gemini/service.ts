@@ -33,7 +33,7 @@ export class GeminiService {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         this.model = genAI.getGenerativeModel({
-            model: 'gemini-1.5-flash',
+            model: 'gemini-2.0-flash-lite-preview-02-05',
             generationConfig: {
                 temperature: 0.3, // Lower temperature for more consistent analysis
                 topP: 0.8,
@@ -42,7 +42,60 @@ export class GeminiService {
         });
     }
 
-    // Analyze a single email in detail
+    // Generate intelligent mock analysis based on email metadata (for demo/rate-limit scenarios)
+    private generateSmartMockAnalysis(email: ParsedEmail): EmailAnalysis {
+        const subject = email.subject.toLowerCase();
+        const snippet = (email.snippet || '').toLowerCase();
+        const daysOld = Math.floor((Date.now() - email.date.getTime()) / (1000 * 60 * 60 * 24));
+
+        // Determine priority based on keywords
+        let priority: Priority = 'MEDIUM';
+        let action: ActionType = 'FYI';
+        let responseTime: ResponseTime = 'When convenient';
+
+        // High priority signals
+        if (subject.includes('urgent') || subject.includes('asap') || subject.includes('important') ||
+            subject.includes('deadline') || subject.includes('action required') || email.isStarred) {
+            priority = 'HIGH';
+            action = 'RESPONSE_NEEDED';
+            responseTime = 'ASAP';
+        }
+        // Meeting/calendar signals
+        else if (subject.includes('meeting') || subject.includes('invite') || subject.includes('calendar')) {
+            priority = 'MEDIUM';
+            action = 'DEADLINE';
+            responseTime = 'This week';
+        }
+        // Question signals
+        else if (subject.includes('question') || subject.includes('help') || snippet.includes('?')) {
+            priority = 'MEDIUM';
+            action = 'RESPONSE_NEEDED';
+            responseTime = 'This week';
+        }
+        // Newsletter/FYI signals
+        else if (subject.includes('newsletter') || subject.includes('update') || subject.includes('digest')) {
+            priority = 'LOW';
+            action = 'FYI';
+            responseTime = 'No response needed';
+        }
+
+        // Older emails get slightly lower priority if not already HIGH
+        if (daysOld > 7 && priority !== 'HIGH') {
+            priority = 'LOW';
+        }
+
+        return {
+            id: email.id,
+            priority,
+            action,
+            summary: email.snippet?.substring(0, 100) || `Email from ${email.from}`,
+            suggestedResponseTime: responseTime,
+            keyPoints: [`From: ${email.from}`, `Subject: ${email.subject.substring(0, 50)}`],
+            reasoning: 'Smart analysis based on email metadata (demo mode)',
+        };
+    }
+
+    // Analyze a single email - uses API if available, falls back to smart mock
     async analyzeEmail(email: ParsedEmail): Promise<EmailAnalysis> {
         const prompt = formatEmailForPrompt(email);
 
@@ -63,17 +116,14 @@ export class GeminiService {
             analysis.id = email.id;
 
             return analysis;
-        } catch (error) {
-            console.error('Error analyzing email:', error);
-            // Return a default analysis on error
-            return {
-                id: email.id,
-                priority: 'MEDIUM',
-                action: 'FYI',
-                summary: email.snippet || 'Unable to analyze email',
-                suggestedResponseTime: 'When convenient',
-                reasoning: 'Analysis failed, using defaults',
-            };
+        } catch (error: any) {
+            // Use smart mock for rate limits or any other errors
+            if (error?.status === 429 || error?.message?.includes('429')) {
+                console.log('API rate limited, using smart mock analysis for:', email.subject);
+            } else {
+                console.error('Error analyzing email:', error);
+            }
+            return this.generateSmartMockAnalysis(email);
         }
     }
 
@@ -81,34 +131,33 @@ export class GeminiService {
     async batchAnalyze(emails: ParsedEmail[]): Promise<EmailAnalysis[]> {
         if (emails.length === 0) return [];
 
-        // For small batches, analyze individually for better quality
-        if (emails.length <= 3) {
-            return Promise.all(emails.map(email => this.analyzeEmail(email)));
-        }
+        // Process sequentially with modest delay for paid tier
+        const analyses: EmailAnalysis[] = [];
 
-        const prompt = formatEmailsForBatchPrompt(emails);
+        for (let i = 0; i < emails.length; i++) {
+            const email = emails[i];
 
-        try {
-            const result = await this.model.generateContent(prompt);
-            const response = result.response.text();
-
-            // Extract JSON array from response
-            const jsonMatch = response.match(/```json\n?([\s\S]*?)\n?```/) ||
-                response.match(/\[[\s\S]*\]/);
-
-            if (!jsonMatch) {
-                throw new Error('Could not parse batch response as JSON');
+            // Add 1 second delay between requests (sufficient for paid tier)
+            if (i > 0) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
-            const jsonStr = jsonMatch[1] || jsonMatch[0];
-            const analyses = JSON.parse(jsonStr) as EmailAnalysis[];
-
-            return analyses;
-        } catch (error) {
-            console.error('Error in batch analysis, falling back to individual:', error);
-            // Fallback to individual analysis
-            return Promise.all(emails.map(email => this.analyzeEmail(email)));
+            try {
+                const analysis = await this.analyzeEmail(email);
+                analyses.push(analysis);
+            } catch (error) {
+                console.error('Analysis failed for item, creating default:', error);
+                analyses.push({
+                    id: email.id,
+                    priority: 'MEDIUM',
+                    action: 'FYI',
+                    summary: email.snippet || 'Failed to analyze',
+                    suggestedResponseTime: 'When convenient',
+                });
+            }
         }
+
+        return analyses;
     }
 
     // Combine emails with their analyses

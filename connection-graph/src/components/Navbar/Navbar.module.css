@@ -13,8 +13,38 @@
 .brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 20px;
 }
+
+.navLinks {
+    display: flex;
+    gap: 4px;
+}
+
+.navLink {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-full);
+    transition: all 0.2s;
+}
+
+.navLink:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.navLink svg {
+    width: 14px;
+    height: 14px;
+}
+
 
 .logo {
     font-size: 22px;

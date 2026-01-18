@@ -25,7 +25,7 @@ export default function Navbar() {
                         Emails
                     </Link>
                 </div>
-                <h1 className={styles.title}>Nodely</h1>
+                <h1 className={styles.title}>Nodeify</h1>
             </div>
 
             <div className={styles.stats}>

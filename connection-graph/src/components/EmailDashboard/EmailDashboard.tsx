@@ -294,12 +294,9 @@ export function EmailDashboard() {
                         </svg>
                         Connections
                     </Link>
+                    <h1 className={styles.brandTitle}>Nodeify</h1>
                 </div>
                 <div className={styles.headerRow}>
-                    <div>
-                        <h1 className={styles.title}>Email Intelligence</h1>
-                        <p className={styles.subtitle}>AI-powered analysis of your {source === 'starred' ? 'starred' : 'recent'} emails</p>
-                    </div>
                     <div className={styles.headerRow}>
                         <div className={styles.sourceToggle}>
                             <button

@@ -2,20 +2,20 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import styles from './HomeGraph.module.css';
 
-interface HomeNode extends d3.SimulationNodeDatum {
+interface OrbitNode {
     id: string;
     label: string;
     href?: string;
     isUser?: boolean;
     color: string;
-}
-
-interface HomeLink extends d3.SimulationLinkDatum<HomeNode> {
-    source: HomeNode | string;
-    target: HomeNode | string;
+    orbitRadius?: number;
+    orbitSpeed?: number;
+    angle?: number;
+    size: number;
 }
 
 export default function HomeGraph() {
@@ -23,6 +23,7 @@ export default function HomeGraph() {
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+    const animationRef = useRef<number>();
 
     useEffect(() => {
         const updateDimensions = () => {
@@ -47,28 +48,31 @@ export default function HomeGraph() {
         const centerX = width / 2;
         const centerY = height / 2;
 
-        const nodes: HomeNode[] = [
-            { id: 'user', label: 'YOU', isUser: true, color: '#a855f7', x: centerX, y: centerY, fx: centerX, fy: centerY },
-            { id: 'connections', label: 'Connections', href: '/connections', color: '#3b82f6', x: centerX - 100, y: centerY },
-            { id: 'email', label: 'Email', href: '/emails', color: '#10b981', x: centerX + 100, y: centerY },
+        // Nodes with orbit properties
+        const nodes: OrbitNode[] = [
+            { id: 'user', label: 'YOU', isUser: true, color: '#a855f7', size: 50 },
+            { id: 'connections', label: 'Connections', href: '/connections', color: '#3b82f6', orbitRadius: 150, orbitSpeed: 0.0008, angle: 0, size: 35 },
+            { id: 'email', label: 'Emails', href: '/emails', color: '#10b981', orbitRadius: 150, orbitSpeed: 0.0008, angle: Math.PI, size: 35 },
         ];
 
-        const links: HomeLink[] = [
-            { source: 'user', target: 'connections' },
-            { source: 'user', target: 'email' },
-        ];
-
-        // Define filters for glows
+        // Define glow filters
         const defs = svg.append('defs');
-        const colors = { user: '#a855f7', connections: '#3b82f6', email: '#10b981' };
 
-        Object.entries(colors).forEach(([key, color]) => {
+        // Orbit path gradient
+        const orbitGradient = defs.append('radialGradient')
+            .attr('id', 'orbit-glow')
+            .attr('cx', '50%').attr('cy', '50%').attr('r', '50%');
+        orbitGradient.append('stop').attr('offset', '0%').attr('stop-color', 'rgba(168, 85, 247, 0.3)');
+        orbitGradient.append('stop').attr('offset', '100%').attr('stop-color', 'transparent');
+
+        // Node glows
+        nodes.forEach(node => {
             const filter = defs.append('filter')
-                .attr('id', `glow-${key}`)
-                .attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+                .attr('id', `glow-${node.id}`)
+                .attr('x', '-100%').attr('y', '-100%').attr('width', '300%').attr('height', '300%');
 
             filter.append('feGaussianBlur')
-                .attr('stdDeviation', '4')
+                .attr('stdDeviation', node.isUser ? '8' : '5')
                 .attr('result', 'coloredBlur');
 
             const feMerge = filter.append('feMerge');
@@ -78,75 +82,72 @@ export default function HomeGraph() {
 
         const container = svg.append('g');
 
-        const simulation = d3.forceSimulation(nodes)
-            .force('link', d3.forceLink<HomeNode, HomeLink>(links).id(d => d.id).distance(150))
-            .force('charge', d3.forceManyBody().strength(-300))
-            .force('center', d3.forceCenter(centerX, centerY));
+        // Draw orbit ring
+        container.append('circle')
+            .attr('cx', centerX)
+            .attr('cy', centerY)
+            .attr('r', 150)
+            .attr('fill', 'none')
+            .attr('stroke', 'rgba(168, 85, 247, 0.15)')
+            .attr('stroke-width', 2)
+            .attr('stroke-dasharray', '8,8');
 
-        const linkElements = container.append('g')
-            .selectAll('line')
-            .data(links)
-            .join('line')
-            .attr('stroke', 'rgba(168, 85, 247, 0.4)')
-            .attr('stroke-width', 2);
+        // Draw orbit glow ring
+        container.append('circle')
+            .attr('cx', centerX)
+            .attr('cy', centerY)
+            .attr('r', 150)
+            .attr('fill', 'none')
+            .attr('stroke', 'rgba(168, 85, 247, 0.08)')
+            .attr('stroke-width', 20);
 
-        const nodeGroups = container.selectAll<SVGGElement, HomeNode>('g.node')
+        // Create node groups
+        const nodeGroups = container.selectAll<SVGGElement, OrbitNode>('g.node')
             .data(nodes)
             .join('g')
-            .style('cursor', d => d.isUser ? 'default' : 'pointer')
-            .call(d3.drag<SVGGElement, HomeNode>()
-                .on('start', (event, d) => {
-                    if (d.isUser) return;
-                    if (!event.active) simulation.alphaTarget(0.3).restart();
-                    d.fx = d.x;
-                    d.fy = d.y;
-                })
-                .on('drag', (event, d) => {
-                    if (d.isUser) return;
-                    d.fx = event.x;
-                    d.fy = event.y;
-                })
-                .on('end', (event, d) => {
-                    if (d.isUser) return;
-                    if (!event.active) simulation.alphaTarget(0);
-                    d.fx = null;
-                    d.fy = null;
-                }));
+            .attr('class', 'node')
+            .style('cursor', d => d.isUser ? 'default' : 'pointer');
 
+        // Add circles
         nodeGroups.append('circle')
-            .attr('r', d => d.isUser ? 35 : 25)
+            .attr('r', d => d.size)
             .attr('fill', d => d.color)
             .attr('filter', d => `url(#glow-${d.id})`)
-            .attr('stroke', d => d.isUser ? 'rgba(255,255,255,0.5)' : 'transparent')
-            .attr('stroke-width', d => d.isUser ? 3 : 2)
-            .attr('stroke-opacity', d => d.isUser ? 1 : 0);
+            .attr('stroke', d => d.isUser ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)')
+            .attr('stroke-width', 2);
 
+        // Add inner glow for center
+        nodeGroups.filter(d => d.isUser)
+            .append('circle')
+            .attr('r', 35)
+            .attr('fill', 'rgba(168, 85, 247, 0.3)');
+
+        // Add labels
         nodeGroups.append('text')
             .text(d => d.label)
-            .attr('dy', d => d.isUser ? 55 : 45)
+            .attr('dy', d => d.size + 20)
             .attr('text-anchor', 'middle')
             .attr('fill', 'white')
-            .style('font-size', '14px')
+            .style('font-size', d => d.isUser ? '16px' : '14px')
             .style('font-weight', '600')
-            .style('pointer-events', 'none');
+            .style('pointer-events', 'none')
+            .style('text-shadow', '0 2px 10px rgba(0,0,0,0.5)');
 
         // Hover effects
         nodeGroups
             .on('mouseenter', function (event, d) {
                 if (d.isUser) return;
-                const r = d.isUser ? 35 : 25;
                 d3.select(this).select('circle')
                     .transition()
-                    .duration(150)
-                    .attr('r', r * 1.3);
+                    .duration(200)
+                    .attr('r', d.size * 1.2);
             })
             .on('mouseleave', function (event, d) {
                 if (d.isUser) return;
-                const r = d.isUser ? 35 : 25;
                 d3.select(this).select('circle')
                     .transition()
-                    .duration(150)
-                    .attr('r', r);
+                    .duration(200)
+                    .attr('r', d.size);
             });
 
         // Click to navigate
@@ -156,23 +157,53 @@ export default function HomeGraph() {
             }
         });
 
-        simulation.on('tick', () => {
-            linkElements
-                .attr('x1', d => (d.source as HomeNode).x!)
-                .attr('y1', d => (d.source as HomeNode).y!)
-                .attr('x2', d => (d.target as HomeNode).x!)
-                .attr('y2', d => (d.target as HomeNode).y!);
+        // Animation loop
+        const animate = () => {
+            nodes.forEach(node => {
+                if (node.orbitRadius && node.orbitSpeed !== undefined && node.angle !== undefined) {
+                    node.angle += node.orbitSpeed;
+                }
+            });
 
-            nodeGroups.attr('transform', d => `translate(${d.x},${d.y})`);
-        });
+            nodeGroups.attr('transform', d => {
+                if (d.isUser) {
+                    return `translate(${centerX}, ${centerY})`;
+                }
+                const x = centerX + (d.orbitRadius || 0) * Math.cos(d.angle || 0);
+                const y = centerY + (d.orbitRadius || 0) * Math.sin(d.angle || 0);
+                return `translate(${x}, ${y})`;
+            });
 
-        return () => { simulation.stop(); };
+            animationRef.current = requestAnimationFrame(animate);
+        };
+
+        animate();
+
+        return () => {
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+            }
+        };
     }, [dimensions, router]);
 
     return (
         <div ref={containerRef} className={styles.container}>
             <header className={styles.header}>
-                <h1 className={styles.title}>Nodely</h1>
+                <div className={styles.navLinks}>
+                    <Link href="/connections" className={styles.navLink}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Connections
+                    </Link>
+                    <Link href="/emails" className={styles.navLink}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Emails
+                    </Link>
+                </div>
+                <h1 className={styles.title}>Nodeify</h1>
             </header>
             <svg ref={svgRef} className={styles.svg} />
         </div>

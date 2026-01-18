@@ -1,47 +1,43 @@
+/* Email Sidebar - Matching Connections Style */
 .sidebar {
-    background: rgba(28, 28, 30, 0.5);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 20px;
-    height: fit-content;
-    position: sticky;
-    top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
 .section {
-    margin-bottom: 24px;
-}
-
-.section:last-child {
-    margin-bottom: 0;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px;
 }
 
 .sectionTitle {
-    font-size: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--text-tertiary);
     margin-bottom: 12px;
-    font-weight: 600;
 }
 
 .card {
-    background: rgba(255, 255, 255, 0.03);
+    padding: 12px 14px;
+    background: var(--bg-tertiary);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 12px;
     margin-bottom: 8px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
-.card:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: var(--border-hover);
-}
-
 .card:last-child {
     margin-bottom: 0;
+}
+
+.card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border-hover);
 }
 
 .focusCard {
@@ -49,7 +45,7 @@
 }
 
 .winCard {
-    border-left: 3px solid var(--heat-cold);
+    border-left: 3px solid var(--accent);
 }
 
 .cardTitle {
@@ -57,6 +53,7 @@
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 4px;
+    line-height: 1.35;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -69,21 +66,9 @@
     color: var(--text-tertiary);
 }
 
-.tipCard {
-    background: var(--accent-glow);
-    border: 1px solid rgba(191, 90, 242, 0.2);
-    border-radius: var(--radius-sm);
-    padding: 14px;
-}
-
-.tipText {
-    font-size: 13px;
-    color: var(--text-secondary);
-    line-height: 1.5;
-}
-
 .emptyText {
     font-size: 12px;
     color: var(--text-tertiary);
-    font-style: italic;
+    text-align: center;
+    padding: 10px;
 }

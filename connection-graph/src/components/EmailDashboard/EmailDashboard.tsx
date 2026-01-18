@@ -30,6 +30,8 @@ export function EmailDashboard() {
     const [filter, setFilter] = useState<FilterType>('all');
     const [showHeatmap, setShowHeatmap] = useState(true);
 
+    const [error, setError] = useState<string | null>(null);
+
     const checkConnection = useCallback(async () => {
         try {
             const res = await fetch('/api/email/status');
@@ -43,6 +45,7 @@ export function EmailDashboard() {
     }, []);
 
     const fetchEmails = useCallback(async () => {
+        setError(null);
         try {
             const res = await fetch('/api/email/starred');
             if (!res.ok) {
@@ -50,11 +53,11 @@ export function EmailDashboard() {
                     setStatus({ connected: false });
                     return;
                 }
-                throw new Error('Failed to fetch');
+                const errData = await res.json();
+                throw new Error(errData.error || 'Failed to fetch');
             }
             const data = await res.json();
 
-            // Convert date strings back to Date objects
             const emailsWithDates = data.emails.map((email: AnalyzedEmail) => ({
                 ...email,
                 date: new Date(email.date),
@@ -62,8 +65,9 @@ export function EmailDashboard() {
 
             setEmails(emailsWithDates);
             setStats(data.stats);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching emails:', error);
+            setError(error.message || 'An unexpected error occurred');
         }
     }, []);
 
@@ -167,6 +171,22 @@ export function EmailDashboard() {
                     </div>
                 </div>
             </header>
+
+            {error && (
+                <div className={styles.errorBanner} style={{
+                    padding: '1rem',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '8px',
+                    color: '#ef4444',
+                    marginBottom: '2rem',
+                    textAlign: 'center'
+                }}>
+                    <strong>Error:</strong> {error}
+                    <br />
+                    <small>Check the browser console for details.</small>
+                </div>
+            )}
 
             {stats && (
                 <div className={styles.statsGrid}>

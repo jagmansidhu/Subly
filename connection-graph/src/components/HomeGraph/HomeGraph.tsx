@@ -50,7 +50,7 @@ export default function HomeGraph() {
         const nodes: HomeNode[] = [
             { id: 'user', label: 'YOU', isUser: true, color: '#a855f7', x: centerX, y: centerY, fx: centerX, fy: centerY },
             { id: 'connections', label: 'Connections', href: '/connections', color: '#3b82f6', x: centerX - 100, y: centerY },
-            { id: 'email', label: 'Email', href: '/email', color: '#10b981', x: centerX + 100, y: centerY },
+            { id: 'email', label: 'Email', href: '/emails', color: '#10b981', x: centerX + 100, y: centerY },
         ];
 
         const links: HomeLink[] = [

@@ -51,6 +51,7 @@ export interface TokenStorage {
 }
 
 // Simple in-memory token storage (replace with database in production)
+/*
 class InMemoryTokenStorage implements TokenStorage {
     private tokens: Map<string, Auth.Credentials> = new Map();
 
@@ -66,6 +67,48 @@ class InMemoryTokenStorage implements TokenStorage {
         this.tokens.delete(userId);
     }
 }
+*/
+
+import fs from 'fs/promises';
+import path from 'path';
+
+// File-based token storage for development persistence
+class FileTokenStorage implements TokenStorage {
+    private filePath = path.join(process.cwd(), '.tokens.json');
+
+    private async readTokens(): Promise<Map<string, Auth.Credentials>> {
+        try {
+            const data = await fs.readFile(this.filePath, 'utf-8');
+            return new Map(JSON.parse(data));
+        } catch {
+            return new Map();
+        }
+    }
+
+    private async writeTokens(tokens: Map<string, Auth.Credentials>): Promise<void> {
+        await fs.writeFile(
+            this.filePath,
+            JSON.stringify(Array.from(tokens.entries()), null, 2)
+        );
+    }
+
+    async getTokens(userId: string): Promise<Auth.Credentials | null> {
+        const tokens = await this.readTokens();
+        return tokens.get(userId) || null;
+    }
+
+    async saveTokens(userId: string, tokens: Auth.Credentials): Promise<void> {
+        const allTokens = await this.readTokens();
+        allTokens.set(userId, tokens);
+        await this.writeTokens(allTokens);
+    }
+
+    async deleteTokens(userId: string): Promise<void> {
+        const tokens = await this.readTokens();
+        tokens.delete(userId);
+        await this.writeTokens(tokens);
+    }
+}
 
 // Export singleton storage instance
-export const tokenStorage = new InMemoryTokenStorage();
+export const tokenStorage = new FileTokenStorage();

@@ -122,13 +122,24 @@ export class GmailService {
 
     // Get starred emails
     async getStarredEmails(maxResults: number = 50): Promise<ParsedEmail[]> {
-        const response = await this.gmail.users.messages.list({
-            userId: 'me',
-            q: 'is:starred',
-            maxResults,
-        });
+        console.log('GmailService: Fetching starred emails...');
+        try {
+            const response = await this.gmail.users.messages.list({
+                userId: 'me',
+                q: 'is:starred',
+                maxResults,
+            });
 
-        return this.fetchMessages(response.data.messages || []);
+            const messages = response.data.messages || [];
+            console.log(`GmailService: Found ${messages.length} starred message IDs`);
+
+            if (messages.length === 0) return [];
+
+            return this.fetchMessages(messages);
+        } catch (error) {
+            console.error('GmailService: Error fetching starred emails:', error);
+            throw error;
+        }
     }
 
     // Get emails by label

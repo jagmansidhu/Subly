@@ -27,12 +27,16 @@ export async function GET(request: NextRequest) {
         }
 
         // Create Gmail service and fetch starred emails
+        console.log('API: Connecting to Gmail...');
         const gmailService = new GmailService(tokens);
         const starredEmails = await gmailService.getStarredEmails(50);
+        console.log(`API: Fetched ${starredEmails.length} starred emails`);
 
         // Analyze emails with Gemini
+        console.log('API: Analyzing with Gemini...');
         const geminiService = getGeminiService();
         const analyzedEmails = await geminiService.analyzeAndEnrich(starredEmails);
+        console.log('API: Analysis complete');
 
         // Sort by priority
         const sortedEmails = geminiService.sortByPriority(analyzedEmails);

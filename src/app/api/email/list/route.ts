@@ -36,10 +36,10 @@ export async function GET(request: NextRequest) {
 
         let emails: ParsedEmail[] = [];
         if (filter === 'starred') {
-            emails = await gmailService.getStarredEmails(8);
+            emails = await gmailService.getStarredEmails(15);
         } else {
             // "all" recent emails
-            emails = await gmailService.getRecentEmails(8);
+            emails = await gmailService.getRecentEmails(15);
         }
 
         console.log(`API: Fetched ${emails.length} emails`);

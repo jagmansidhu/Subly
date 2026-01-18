@@ -39,25 +39,28 @@ export async function POST(request: NextRequest) {
         const connections = Array.isArray(body) ? body : [body];
 
         for (const conn of connections) {
+            // Escape single quotes in strings
+            const escape = (val: unknown) => val ? String(val).replace(/'/g, "''") : null;
+
             const sql = `
                 INSERT INTO CONNECTIONS (ID, NAME, TITLE, COMPANY, INDUSTRY, EMAIL, PHONE, LINKEDIN, LAST_CONTACT_DATE, DEGREE, CONNECTED_THROUGH, NOTES)
-                VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12)
+                VALUES (
+                    '${escape(conn.id)}',
+                    '${escape(conn.name)}',
+                    ${conn.title ? `'${escape(conn.title)}'` : 'NULL'},
+                    ${conn.company ? `'${escape(conn.company)}'` : 'NULL'},
+                    '${escape(conn.industry) || 'Other'}',
+                    ${conn.email ? `'${escape(conn.email)}'` : 'NULL'},
+                    ${conn.phone ? `'${escape(conn.phone)}'` : 'NULL'},
+                    ${conn.linkedIn ? `'${escape(conn.linkedIn)}'` : 'NULL'},
+                    ${conn.lastContactDate ? `'${new Date(conn.lastContactDate).toISOString()}'` : 'NULL'},
+                    ${conn.degree || 1},
+                    ${conn.connectedThrough ? `'${escape(conn.connectedThrough)}'` : 'NULL'},
+                    ${conn.notes ? `'${escape(conn.notes)}'` : 'NULL'}
+                )
             `;
 
-            await executeInsert(sql, {
-                '1': conn.id,
-                '2': conn.name,
-                '3': conn.title || null,
-                '4': conn.company || null,
-                '5': conn.industry || 'Other',
-                '6': conn.email || null,
-                '7': conn.phone || null,
-                '8': conn.linkedIn || null,
-                '9': conn.lastContactDate ? new Date(conn.lastContactDate).toISOString() : null,
-                '10': conn.degree || 1,
-                '11': conn.connectedThrough || null,
-                '12': conn.notes || null,
-            });
+            await executeInsert(sql);
         }
 
         return NextResponse.json({ success: true, count: connections.length });

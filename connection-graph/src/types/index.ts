@@ -1,0 +1,62 @@
+// Core connection data types
+
+export interface Connection {
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  industry: string;
+  email?: string;
+  phone?: string;
+  linkedIn?: string;
+  lastContactDate: Date;
+  notes?: string;
+  avatar?: string;
+}
+
+export type HeatStatus = 'hot' | 'warm' | 'cold';
+
+export interface ConnectionNode extends Connection {
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+  fx?: number | null;
+  fy?: number | null;
+  heatStatus: HeatStatus;
+}
+
+export interface FilterState {
+  industries: string[];
+  heatStatuses: HeatStatus[];
+  searchQuery: string;
+}
+
+// Graph simulation types for D3
+export interface SimulationNode {
+  id: string;
+  x: number;
+  y: number;
+  vx?: number;
+  vy?: number;
+  fx?: number | null;
+  fy?: number | null;
+}
+
+// Industry options for filtering
+export const INDUSTRIES = [
+  'Technology',
+  'Finance',
+  'Healthcare',
+  'Marketing',
+  'Sales',
+  'Engineering',
+  'Design',
+  'Consulting',
+  'Real Estate',
+  'Legal',
+  'Education',
+  'Other'
+] as const;
+
+export type Industry = typeof INDUSTRIES[number];
